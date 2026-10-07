@@ -50,5 +50,42 @@ class Program
             Console.WriteLine($"Самое короткое слово: {shortWord}");
             Console.WriteLine($"Самое длинное слово: {longWord}");
         }
+
+        // считаем предложения по знакам . ! ?
+        // предложение засчитывается, если перед знаком были буквы (так ... или ?! считаются один раз)
+        int sentences = 0;
+        bool hasLetters = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (char.IsLetter(text[i]))
+                hasLetters = true;
+            if ((text[i] == '.' || text[i] == '!' || text[i] == '?') && hasLetters)
+            {
+                sentences++;
+                hasLetters = false;
+            }
+        }
+        // если в конце нет точки, последнее предложение тоже считаем
+        if (hasLetters)
+            sentences++;
+        Console.WriteLine($"Количество предложений: {sentences}");
+
+        // гласные и согласные
+        string vowelsList = "аеёиоуыэюяaeiouy";
+        int vowels = 0;
+        int consonants = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = char.ToLower(text[i]);
+            if (char.IsLetter(c))
+            {
+                if (vowelsList.Contains(c))
+                    vowels++;
+                else if (c != 'ъ' && c != 'ь')
+                    consonants++;
+            }
+        }
+        Console.WriteLine($"Гласных букв: {vowels}");
+        Console.WriteLine($"Согласных букв: {consonants}");
     }
 }
