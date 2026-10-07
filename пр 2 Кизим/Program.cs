@@ -14,16 +14,6 @@ class TextAnalyzer
     // сюда сохраняется статистика по всем текстам
     private List<string> history = new List<string>();
 
-    private string text = "";
-    private int wordsCount;
-    private string shortWord = "";
-    private string longWord = "";
-    private int sentences;
-    private int vowels;
-    private int consonants;
-    private string alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
-    private int[] letterCount;
-
     public void Start()
     {
         while (true)
@@ -34,11 +24,8 @@ class TextAnalyzer
             switch (choice)
             {
                 case "1":
-                    ReadText();
-                    Analyze();
-                    string result = GetStatistics();
-                    history.Add(result);
-                    Console.WriteLine(result);
+                    string text = ReadText();
+                    Analyze(text);
                     break;
 
                 case "2":
@@ -55,35 +42,33 @@ class TextAnalyzer
         }
     }
 
-    private void ReadText()
+    private string ReadText()
     {
         while (true)
         {
             Console.WriteLine("Введите текст (минимум 100 символов):");
-            text = Console.ReadLine();
-            if (text != null && text.Length >= 100) break;
+            string text = Console.ReadLine();
+            if (text != null && text.Length >= 100)
+                return text;
             Console.WriteLine("Текст слишком короткий, попробуйте еще раз");
         }
     }
 
-    // перед новым текстом обнуляем старые значения
-    private void Analyze()
+    // считаем всю статистику, выводим ее и сохраняем в список
+    private void Analyze(string text)
     {
-        wordsCount = 0;
-        shortWord = "";
-        longWord = "";
-        sentences = 0;
-        vowels = 0;
-        consonants = 0;
-        letterCount = new int[alphabet.Length];
+        string result = $"Текст: {text}\n";
+        result += CountWords(text);
+        result += CountSentences(text);
+        result += CountVowels(text);
+        result += LetterFrequency(text);
 
-        CountWords();
-        CountSentences();
-        CountLetters();
+        Console.WriteLine(result);
+        history.Add(result);
     }
 
     // разбиваем текст на слова (слово - это буквы подряд)
-    private void CountWords()
+    private string CountWords(string text)
     {
         List<string> words = new List<string>();
         string word = "";
@@ -105,8 +90,8 @@ class TextAnalyzer
         if (word != "")
             words.Add(word);
 
-        wordsCount = words.Count;
-
+        string shortWord = "";
+        string longWord = "";
         if (words.Count > 0)
         {
             shortWord = words[0];
@@ -119,12 +104,18 @@ class TextAnalyzer
                     longWord = words[i];
             }
         }
+
+        string result = $"Количество слов: {words.Count}\n";
+        result += $"Самое короткое слово: {shortWord}\n";
+        result += $"Самое длинное слово: {longWord}\n";
+        return result;
     }
 
     // считаем предложения по знакам . ! ?
     // предложение засчитывается, если перед знаком были буквы (так ... или ?! считаются один раз)
-    private void CountSentences()
+    private string CountSentences(string text)
     {
+        int sentences = 0;
         bool hasLetters = false;
         for (int i = 0; i < text.Length; i++)
         {
@@ -139,12 +130,16 @@ class TextAnalyzer
         // если в конце нет точки, последнее предложение тоже считаем
         if (hasLetters)
             sentences++;
+
+        return $"Количество предложений: {sentences}\n";
     }
 
-    // гласные, согласные и частота каждой буквы
-    private void CountLetters()
+    // гласные и согласные
+    private string CountVowels(string text)
     {
         string vowelsList = "аеёиоуыэюяaeiouy";
+        int vowels = 0;
+        int consonants = 0;
         for (int i = 0; i < text.Length; i++)
         {
             char c = char.ToLower(text[i]);
@@ -155,24 +150,27 @@ class TextAnalyzer
                 else if (c != 'ъ' && c != 'ь')
                     consonants++;
             }
+        }
 
+        string result = $"Гласных букв: {vowels}\n";
+        result += $"Согласных букв: {consonants}\n";
+        return result;
+    }
+
+    // частота каждой буквы
+    private string LetterFrequency(string text)
+    {
+        string alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
+        int[] letterCount = new int[alphabet.Length];
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = char.ToLower(text[i]);
             int index = alphabet.IndexOf(c);
             if (index != -1)
                 letterCount[index]++;
         }
-    }
 
-    // собираем всю статистику в одну строку, чтобы сохранить ее в список
-    private string GetStatistics()
-    {
-        string result = $"Текст: {text}\n";
-        result += $"Количество слов: {wordsCount}\n";
-        result += $"Самое короткое слово: {shortWord}\n";
-        result += $"Самое длинное слово: {longWord}\n";
-        result += $"Количество предложений: {sentences}\n";
-        result += $"Гласных букв: {vowels}\n";
-        result += $"Согласных букв: {consonants}\n";
-        result += "Частота букв:";
+        string result = "Частота букв:";
         for (int i = 0; i < alphabet.Length; i++)
         {
             if (letterCount[i] > 0)
