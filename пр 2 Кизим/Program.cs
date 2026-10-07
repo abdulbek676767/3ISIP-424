@@ -4,8 +4,28 @@ class Program
 {
     static void Main()
     {
-        List<TextStats> history = new List<TextStats>();
+        TextAnalyzer analyzer = new TextAnalyzer();
+        analyzer.Start();
+    }
+}
 
+class TextAnalyzer
+{
+    // сюда сохраняется статистика по всем текстам
+    private List<string> history = new List<string>();
+
+    private string text = "";
+    private int wordsCount;
+    private string shortWord = "";
+    private string longWord = "";
+    private int sentences;
+    private int vowels;
+    private int consonants;
+    private string alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
+    private int[] letterCount;
+
+    public void Start()
+    {
         while (true)
         {
             Console.WriteLine("\n1-Ввести новый текст  2-Статистика по прошлым текстам  0-Выход");
@@ -14,31 +34,15 @@ class Program
             switch (choice)
             {
                 case "1":
-                    string text;
-                    while (true)
-                    {
-                        Console.WriteLine("Введите текст (минимум 100 символов):");
-                        text = Console.ReadLine();
-                        if (text != null && text.Length >= 100) break;
-                        Console.WriteLine("Текст слишком короткий, попробуйте еще раз");
-                    }
-
-                    TextStats stats = new TextStats(text);
-                    history.Add(stats);
-                    stats.Print();
+                    ReadText();
+                    Analyze();
+                    string result = GetStatistics();
+                    history.Add(result);
+                    Console.WriteLine(result);
                     break;
 
                 case "2":
-                    if (history.Count == 0)
-                    {
-                        Console.WriteLine("Вы еще не вводили тексты");
-                        break;
-                    }
-                    for (int i = 0; i < history.Count; i++)
-                    {
-                        Console.WriteLine($"\n===== Текст №{i + 1} =====");
-                        history[i].Print();
-                    }
+                    ShowHistory();
                     break;
 
                 case "0":
@@ -50,39 +54,44 @@ class Program
             }
         }
     }
-}
 
-class TextStats
-{
-    public string Text;
-    public int WordsCount;
-    public string ShortWord = "";
-    public string LongWord = "";
-    public int Sentences;
-    public int Vowels;
-    public int Consonants;
-    public string Alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
-    public int[] LetterCount;
-
-    public TextStats(string text)
+    private void ReadText()
     {
-        Text = text;
-        LetterCount = new int[Alphabet.Length];
+        while (true)
+        {
+            Console.WriteLine("Введите текст (минимум 100 символов):");
+            text = Console.ReadLine();
+            if (text != null && text.Length >= 100) break;
+            Console.WriteLine("Текст слишком короткий, попробуйте еще раз");
+        }
+    }
+
+    // перед новым текстом обнуляем старые значения
+    private void Analyze()
+    {
+        wordsCount = 0;
+        shortWord = "";
+        longWord = "";
+        sentences = 0;
+        vowels = 0;
+        consonants = 0;
+        letterCount = new int[alphabet.Length];
+
         CountWords();
         CountSentences();
         CountLetters();
     }
 
     // разбиваем текст на слова (слово - это буквы подряд)
-    void CountWords()
+    private void CountWords()
     {
         List<string> words = new List<string>();
         string word = "";
-        for (int i = 0; i < Text.Length; i++)
+        for (int i = 0; i < text.Length; i++)
         {
-            if (char.IsLetter(Text[i]))
+            if (char.IsLetter(text[i]))
             {
-                word = word + Text[i];
+                word = word + text[i];
             }
             else
             {
@@ -96,78 +105,93 @@ class TextStats
         if (word != "")
             words.Add(word);
 
-        WordsCount = words.Count;
+        wordsCount = words.Count;
 
         if (words.Count > 0)
         {
-            ShortWord = words[0];
-            LongWord = words[0];
+            shortWord = words[0];
+            longWord = words[0];
             for (int i = 1; i < words.Count; i++)
             {
-                if (words[i].Length < ShortWord.Length)
-                    ShortWord = words[i];
-                if (words[i].Length > LongWord.Length)
-                    LongWord = words[i];
+                if (words[i].Length < shortWord.Length)
+                    shortWord = words[i];
+                if (words[i].Length > longWord.Length)
+                    longWord = words[i];
             }
         }
     }
 
     // считаем предложения по знакам . ! ?
     // предложение засчитывается, если перед знаком были буквы (так ... или ?! считаются один раз)
-    void CountSentences()
+    private void CountSentences()
     {
-        Sentences = 0;
         bool hasLetters = false;
-        for (int i = 0; i < Text.Length; i++)
+        for (int i = 0; i < text.Length; i++)
         {
-            if (char.IsLetter(Text[i]))
+            if (char.IsLetter(text[i]))
                 hasLetters = true;
-            if ((Text[i] == '.' || Text[i] == '!' || Text[i] == '?') && hasLetters)
+            if ((text[i] == '.' || text[i] == '!' || text[i] == '?') && hasLetters)
             {
-                Sentences++;
+                sentences++;
                 hasLetters = false;
             }
         }
         // если в конце нет точки, последнее предложение тоже считаем
         if (hasLetters)
-            Sentences++;
+            sentences++;
     }
 
     // гласные, согласные и частота каждой буквы
-    void CountLetters()
+    private void CountLetters()
     {
         string vowelsList = "аеёиоуыэюяaeiouy";
-        for (int i = 0; i < Text.Length; i++)
+        for (int i = 0; i < text.Length; i++)
         {
-            char c = char.ToLower(Text[i]);
+            char c = char.ToLower(text[i]);
             if (char.IsLetter(c))
             {
                 if (vowelsList.Contains(c))
-                    Vowels++;
+                    vowels++;
                 else if (c != 'ъ' && c != 'ь')
-                    Consonants++;
+                    consonants++;
             }
 
-            int index = Alphabet.IndexOf(c);
+            int index = alphabet.IndexOf(c);
             if (index != -1)
-                LetterCount[index]++;
+                letterCount[index]++;
         }
     }
 
-    public void Print()
+    // собираем всю статистику в одну строку, чтобы сохранить ее в список
+    private string GetStatistics()
     {
-        Console.WriteLine($"Текст: {Text}");
-        Console.WriteLine($"Количество слов: {WordsCount}");
-        Console.WriteLine($"Самое короткое слово: {ShortWord}");
-        Console.WriteLine($"Самое длинное слово: {LongWord}");
-        Console.WriteLine($"Количество предложений: {Sentences}");
-        Console.WriteLine($"Гласных букв: {Vowels}");
-        Console.WriteLine($"Согласных букв: {Consonants}");
-        Console.WriteLine("Частота букв:");
-        for (int i = 0; i < Alphabet.Length; i++)
+        string result = $"Текст: {text}\n";
+        result += $"Количество слов: {wordsCount}\n";
+        result += $"Самое короткое слово: {shortWord}\n";
+        result += $"Самое длинное слово: {longWord}\n";
+        result += $"Количество предложений: {sentences}\n";
+        result += $"Гласных букв: {vowels}\n";
+        result += $"Согласных букв: {consonants}\n";
+        result += "Частота букв:";
+        for (int i = 0; i < alphabet.Length; i++)
         {
-            if (LetterCount[i] > 0)
-                Console.WriteLine($"{Alphabet[i]} - {LetterCount[i]}");
+            if (letterCount[i] > 0)
+                result += $"\n{alphabet[i]} - {letterCount[i]}";
+        }
+        return result;
+    }
+
+    private void ShowHistory()
+    {
+        if (history.Count == 0)
+        {
+            Console.WriteLine("Вы еще не вводили тексты");
+            return;
+        }
+        for (int i = 0; i < history.Count; i++)
+        {
+            Console.WriteLine($"\n===== Текст №{i + 1} =====");
+            Console.WriteLine(history[i]);
         }
     }
 }
