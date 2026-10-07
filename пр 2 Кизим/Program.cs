@@ -87,5 +87,22 @@ class Program
         }
         Console.WriteLine($"Гласных букв: {vowels}");
         Console.WriteLine($"Согласных букв: {consonants}");
+
+        // частота каждой буквы
+        string alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
+        int[] letterCount = new int[alphabet.Length];
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = char.ToLower(text[i]);
+            int index = alphabet.IndexOf(c);
+            if (index != -1)
+                letterCount[index]++;
+        }
+        Console.WriteLine("Частота букв:");
+        for (int i = 0; i < alphabet.Length; i++)
+        {
+            if (letterCount[i] > 0)
+                Console.WriteLine($"{alphabet[i]} - {letterCount[i]}");
+        }
     }
 }
