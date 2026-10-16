@@ -2,65 +2,86 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-class Course
+namespace UniversitySystem
 {
-    public int Id { get; private set; }
-    public string Title { get; private set; }
-    public int Hours { get; private set; }
-    public int MaxStudents { get; private set; }
-    public Teacher Teacher { get; private set; }
-
-    private List<Student> students = new List<Student>();
-
-    public Course(int id, string title, int hours, int maxStudents)
+    class Course
     {
-        Id = id;
-        Title = title;
-        Hours = hours;
-        MaxStudents = maxStudents;
-    }
+        private static int nextId = 1;
 
-    public bool IsFull()
-    {
-        return students.Count >= MaxStudents;
-    }
+        public int Id { get; private set; }
+        public string Title { get; private set; }
+        public int Hours { get; private set; }
+        public int MaxStudents { get; private set; }
+        public Teacher Teacher { get; private set; }
 
-    // вызывается из Student.EnrollCourse
-    public void AddStudent(Student student)
-    {
-        if (!students.Contains(student))
-            students.Add(student);
-    }
+        // студенты курса закрыты, записать можно только через Student.EnrollCourse
+        private List<Student> students = new List<Student>();
 
-    // у курса может быть только один преподаватель
-    public void SetTeacher(Teacher teacher)
-    {
-        if (Teacher != null)
-            Teacher.RemoveCourse(this);
+        // у каждого курса есть преподаватель, поэтому без него курс не создается
+        public Course(string title, int hours, int maxStudents, Teacher teacher)
+        {
+            Id = nextId++;
+            Title = title;
+            Hours = hours;
+            MaxStudents = maxStudents;
+            SetTeacher(teacher);
+        }
 
-        Teacher = teacher;
-        teacher.AddCourse(this);
-    }
+        public bool IsFull()
+        {
+            return students.Count >= MaxStudents;
+        }
 
-    public List<Student> GetStudents()
-    {
-        return students.OrderBy(s => s.FullName).ToList();
-    }
+        // internal: вызывается только из Student.EnrollCourse,
+        // чтобы списки у студента и у курса всегда совпадали
+        internal void AddStudent(Student student)
+        {
+            if (!students.Contains(student))
+                students.Add(student);
+        }
 
-    public void ShowInfo()
-    {
-        Console.WriteLine($"Курс №{Id}: {Title}");
-        Console.WriteLine($"  Часов:         {Hours}");
-        if (Teacher == null)
-            Console.WriteLine("  Преподаватель: не назначен");
-        else
-            Console.WriteLine($"  Преподаватель: {Teacher.FullName}");
-        Console.WriteLine($"  Студентов:     {students.Count} из {MaxStudents}");
-    }
+        // назначить или сменить преподавателя курса
+        public void SetTeacher(Teacher teacher)
+        {
+            if (teacher == null || teacher == Teacher)
+                return;
 
-    public string GetShortInfo()
-    {
-        string teacherName = Teacher == null ? "не назначен" : Teacher.FullName;
-        return $"№{Id} {Title} ({Hours} ч.), преподаватель: {teacherName}, мест занято {students.Count}/{MaxStudents}";
+            if (Teacher != null)
+                Teacher.RemoveCourse(this);
+
+            Teacher = teacher;
+            teacher.AddCourse(this);
+        }
+
+        public List<Student> GetStudents()
+        {
+            return students.OrderBy(s => s.FullName).ToList();
+        }
+
+        private string GetTeacherName()
+        {
+            if (Teacher == null)
+                return "не назначен";
+            return Teacher.FullName;
+        }
+
+        public void ShowInfo()
+        {
+            Console.WriteLine($"Курс №{Id}: {Title}");
+            Console.WriteLine($"  Часов:               {Hours}");
+            Console.WriteLine($"  Преподаватель:       {GetTeacherName()}");
+            if (Teacher != null)
+            {
+                Console.WriteLine($"  Кафедра:             {Teacher.Department}");
+                Console.WriteLine($"  Ученая степень:      {Teacher.GetDegreeText()}");
+            }
+            Console.WriteLine($"  Записано студентов:  {students.Count} из {MaxStudents}");
+            Console.WriteLine($"  Свободных мест:      {MaxStudents - students.Count}");
+        }
+
+        public override string ToString()
+        {
+            return $"№{Id} {Title}, {Hours} ч., преподаватель: {GetTeacherName()}, мест занято {students.Count}/{MaxStudents}";
+        }
     }
 }
