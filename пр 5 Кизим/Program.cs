@@ -14,13 +14,10 @@ namespace UniversitySystem
             while (work)
             {
                 ShowMenu();
-                Console.Write("Выберите пункт меню: ");
-                string choice = Console.ReadLine();
-                if (choice == null)
-                    break;
+                string choice = ReadText("Выберите пункт меню: ", 10);
                 Console.WriteLine();
 
-                switch (choice.Trim())
+                switch (choice)
                 {
                     case "1": AddStudent(); break;
                     case "2": ShowPersonInfo(ChooseStudent()); break;
@@ -165,8 +162,15 @@ namespace UniversitySystem
             Console.WriteLine("  1 - без степени");
             Console.WriteLine("  2 - кандидат наук");
             Console.WriteLine("  3 - доктор наук");
-            int number = ReadNumber("Выберите (1-3): ", 1, 3);
-            return (AcademicDegree)(number - 1);
+            switch (ReadNumber("Выберите (1-3): ", 1, 3))
+            {
+                case 2:
+                    return AcademicDegree.Candidate;
+                case 3:
+                    return AcademicDegree.Doctor;
+                default:
+                    return AcademicDegree.None;
+            }
         }
 
         static void AssignTeacher()
@@ -287,20 +291,8 @@ namespace UniversitySystem
             }
 
             ShowAllStudents();
-            int maxId = students.Max(s => s.Id);
-            while (true)
-            {
-                int id = ReadNumber("Введите номер студента (0 - отмена): ", 0, maxId);
-                if (id == 0)
-                {
-                    Console.WriteLine("Действие отменено");
-                    return null;
-                }
-                Student student = university.FindStudent(id);
-                if (student != null)
-                    return student;
-                Console.WriteLine("Ошибка: студента с таким номером нет");
-            }
+            int id = ReadId("Введите номер студента", students.Max(s => s.Id));
+            return university.FindStudent(id); // при отмене id = 0, такого номера нет - вернется null
         }
 
         static Teacher ChooseTeacher()
@@ -313,20 +305,8 @@ namespace UniversitySystem
             }
 
             ShowAllTeachers();
-            int maxId = teachers.Max(t => t.Id);
-            while (true)
-            {
-                int id = ReadNumber("Введите номер преподавателя (0 - отмена): ", 0, maxId);
-                if (id == 0)
-                {
-                    Console.WriteLine("Действие отменено");
-                    return null;
-                }
-                Teacher teacher = university.FindTeacher(id);
-                if (teacher != null)
-                    return teacher;
-                Console.WriteLine("Ошибка: преподавателя с таким номером нет");
-            }
+            int id = ReadId("Введите номер преподавателя", teachers.Max(t => t.Id));
+            return university.FindTeacher(id);
         }
 
         static Course ChooseCourse()
@@ -339,20 +319,17 @@ namespace UniversitySystem
             }
 
             ShowAllCourses();
-            int maxId = courses.Max(c => c.Id);
-            while (true)
-            {
-                int id = ReadNumber("Введите номер курса (0 - отмена): ", 0, maxId);
-                if (id == 0)
-                {
-                    Console.WriteLine("Действие отменено");
-                    return null;
-                }
-                Course course = university.FindCourse(id);
-                if (course != null)
-                    return course;
-                Console.WriteLine("Ошибка: курса с таким номером нет");
-            }
+            int id = ReadId("Введите номер курса", courses.Max(c => c.Id));
+            return university.FindCourse(id);
+        }
+
+        // номер из списка от 1 до maxId, 0 - отмена
+        static int ReadId(string message, int maxId)
+        {
+            int id = ReadNumber($"{message} (0 - отмена): ", 0, maxId);
+            if (id == 0)
+                Console.WriteLine("Действие отменено");
+            return id;
         }
 
         // ===== Проверка ввода =====
