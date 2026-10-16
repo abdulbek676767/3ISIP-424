@@ -108,14 +108,18 @@ namespace UniversitySystem
             if (course == null)
                 return;
 
-            if (student.IsEnrolled(course))
-                Console.WriteLine($"{student.FullName} уже записан(а) на курс \"{course.Title}\"");
-            else if (course.IsFull())
-                Console.WriteLine($"На курсе \"{course.Title}\" нет свободных мест");
-            else
+            // результат записи - значение перечисления, поэтому разбираем его через switch
+            switch (student.EnrollCourse(course))
             {
-                student.EnrollCourse(course);
-                Console.WriteLine($"{student.FullName} записан(а) на курс \"{course.Title}\"");
+                case EnrollResult.Success:
+                    Console.WriteLine($"{student.FullName} записан(а) на курс \"{course.Title}\"");
+                    break;
+                case EnrollResult.AlreadyEnrolled:
+                    Console.WriteLine($"{student.FullName} уже записан(а) на курс \"{course.Title}\"");
+                    break;
+                case EnrollResult.CourseFull:
+                    Console.WriteLine($"На курсе \"{course.Title}\" нет свободных мест");
+                    break;
             }
         }
 

@@ -4,6 +4,14 @@ using System.Linq;
 
 namespace UniversitySystem
 {
+    // результат записи студента на курс
+    enum EnrollResult
+    {
+        Success,          // записан
+        AlreadyEnrolled,  // уже был записан на этот курс
+        CourseFull        // на курсе нет свободных мест
+    }
+
     // Наследование: студент получает от Person ФИО, возраст и контакты
     // и добавляет только свое - группу, курс обучения и список курсов
     class Student : Person
@@ -29,20 +37,17 @@ namespace UniversitySystem
             return "Студент";
         }
 
-        public bool IsEnrolled(Course course)
-        {
-            return courses.Contains(course);
-        }
-
         // запись на курс: дважды на один курс и на курс без мест записаться нельзя
-        public bool EnrollCourse(Course course)
+        public EnrollResult EnrollCourse(Course course)
         {
-            if (course == null || IsEnrolled(course) || course.IsFull())
-                return false;
+            if (courses.Contains(course))
+                return EnrollResult.AlreadyEnrolled;
+            if (course.IsFull())
+                return EnrollResult.CourseFull;
 
             courses.Add(course);
             course.AddStudent(this);
-            return true;
+            return EnrollResult.Success;
         }
 
         // отдаем новый список, чтобы снаружи нельзя было изменить настоящий
