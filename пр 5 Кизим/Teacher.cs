@@ -1,85 +1,92 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
-// ученая степень преподавателя
-enum Degree
+namespace UniversitySystem
 {
-    None,       // без степени
-    Candidate,  // кандидат наук
-    Doctor      // доктор наук
-}
-
-class Teacher : Person
-{
-    public string Department { get; private set; }
-    public Degree Degree { get; private set; }
-    public int Experience { get; private set; }
-
-    private List<Course> courses = new List<Course>();
-
-    public Teacher(int id, string fullName, int age, string phone, string email, string department, Degree degree, int experience)
-        : base(id, fullName, age, phone, email)
+    // ученая степень преподавателя
+    enum AcademicDegree
     {
-        Department = department;
-        Degree = degree;
-        Experience = experience;
+        None,       // без степени
+        Candidate,  // кандидат наук
+        Doctor      // доктор наук
     }
 
-    public override string GetRole()
+    // Наследование: преподаватель тоже Person, но со своими данными
+    class Teacher : Person
     {
-        return "Преподаватель";
-    }
+        private static int nextId = 1;
 
-    // эти методы вызывает сам курс, когда ему назначают преподавателя
-    public void AddCourse(Course course)
-    {
-        if (!courses.Contains(course))
-            courses.Add(course);
-    }
+        public string Department { get; private set; }
+        public AcademicDegree Degree { get; private set; }
+        public int Experience { get; private set; }
 
-    public void RemoveCourse(Course course)
-    {
-        courses.Remove(course);
-    }
+        // курсы, которые ведет преподаватель
+        private List<Course> courses = new List<Course>();
 
-    public List<Course> GetCourses()
-    {
-        return new List<Course>(courses);
-    }
-
-    public string GetDegreeText()
-    {
-        switch (Degree)
+        public Teacher(string fullName, int age, string phone, string email, string department, AcademicDegree degree, int experience)
+            : base(nextId++, fullName, age, phone, email)
         {
-            case Degree.Candidate:
-                return "Кандидат наук";
-            case Degree.Doctor:
-                return "Доктор наук";
-            default:
-                return "Без степени";
+            Department = department;
+            Degree = degree;
+            Experience = experience;
         }
-    }
 
-    public override void ShowInfo()
-    {
-        base.ShowInfo();
-        Console.WriteLine($"  Кафедра:  {Department}");
-        Console.WriteLine($"  Степень:  {GetDegreeText()}");
-        Console.WriteLine($"  Стаж:     {Experience} лет");
-        if (courses.Count == 0)
+        public override string GetRole()
         {
-            Console.WriteLine("  Ведет курсы: нет");
+            return "Преподаватель";
         }
-        else
+
+        // internal: эти методы вызывает только Course, когда назначает преподавателя
+        internal void AddCourse(Course course)
         {
+            if (!courses.Contains(course))
+                courses.Add(course);
+        }
+
+        internal void RemoveCourse(Course course)
+        {
+            courses.Remove(course);
+        }
+
+        public List<Course> GetCourses()
+        {
+            return courses.OrderBy(c => c.Title).ToList();
+        }
+
+        public string GetDegreeText()
+        {
+            switch (Degree)
+            {
+                case AcademicDegree.Candidate:
+                    return "кандидат наук";
+                case AcademicDegree.Doctor:
+                    return "доктор наук";
+                default:
+                    return "без степени";
+            }
+        }
+
+        public override void ShowInfo()
+        {
+            base.ShowInfo();
+            Console.WriteLine($"  Кафедра:           {Department}");
+            Console.WriteLine($"  Ученая степень:    {GetDegreeText()}");
+            Console.WriteLine($"  Стаж (лет):        {Experience}");
+
+            if (courses.Count == 0)
+            {
+                Console.WriteLine("  Ведет курсы:       пока нет");
+                return;
+            }
             Console.WriteLine("  Ведет курсы:");
-            foreach (Course course in courses)
+            foreach (Course course in GetCourses())
                 Console.WriteLine($"    - {course.Title}");
         }
-    }
 
-    public override string GetShortInfo()
-    {
-        return base.GetShortInfo() + $", кафедра {Department}";
+        public override string ToString()
+        {
+            return base.ToString() + $", кафедра \"{Department}\"";
+        }
     }
 }
