@@ -4,6 +4,348 @@ using System.Linq;
 
 namespace UniversitySystem
 {
+    // Абстракция: общие данные и поведение всех людей в университете.
+    // Класс абстрактный - создать просто "человека" нельзя,
+    // можно создать только студента или преподавателя.
+    abstract class Person
+    {
+        // Инкапсуляция: прочитать данные можно откуда угодно,
+        // а изменить - только внутри класса (private set)
+        public int Id { get; private set; }
+        public string FullName { get; private set; }
+        public int Age { get; private set; }
+        public string Phone { get; private set; }
+        public string Email { get; private set; }
+
+        // protected - этот конструктор могут вызвать только наследники
+        protected Person(int id, string fullName, int age, string phone, string email)
+        {
+            Id = id;
+            FullName = fullName;
+            Age = age;
+            Phone = phone;
+            Email = email;
+        }
+
+        // каждый наследник обязан сказать, кто он
+        public abstract string GetRole();
+
+        // Полиморфизм: общая часть информации,
+        // наследники переопределяют метод и добавляют свои данные
+        public virtual void ShowInfo()
+        {
+            Console.WriteLine($"{GetRole()} №{Id}");
+            Console.WriteLine($"  ФИО:               {FullName}");
+            Console.WriteLine($"  Возраст:           {Age}");
+            Console.WriteLine($"  Телефон:           {Phone}");
+            Console.WriteLine($"  Email:             {Email}");
+        }
+
+        // краткая информация в одну строку - для списков
+        public override string ToString()
+        {
+            return $"№{Id} {FullName}, возраст {Age}";
+        }
+    }
+
+    // результат записи студента на курс
+    enum EnrollResult
+    {
+        Success,          // записан
+        AlreadyEnrolled,  // уже был записан на этот курс
+        CourseFull        // на курсе нет свободных мест
+    }
+
+    // Наследование: студент получает от Person ФИО, возраст и контакты
+    // и добавляет только свое - группу, курс обучения и список курсов
+    class Student : Person
+    {
+        // счетчик общий для всех студентов, поэтому номера не повторяются
+        private static int nextId = 1;
+
+        public string Group { get; private set; }
+        public int Year { get; private set; }
+
+        // список курсов закрыт, изменить его можно только через EnrollCourse
+        private List<Course> courses = new List<Course>();
+
+        public Student(string fullName, int age, string phone, string email, string group, int year)
+            : base(nextId++, fullName, age, phone, email)
+        {
+            Group = group;
+            Year = year;
+        }
+
+        public override string GetRole()
+        {
+            return "Студент";
+        }
+
+        // запись на курс: дважды на один курс и на курс без мест записаться нельзя
+        public EnrollResult EnrollCourse(Course course)
+        {
+            if (courses.Contains(course))
+                return EnrollResult.AlreadyEnrolled;
+            if (course.IsFull())
+                return EnrollResult.CourseFull;
+
+            courses.Add(course);
+            course.AddStudent(this);
+            return EnrollResult.Success;
+        }
+
+        // отдаем новый список, чтобы снаружи нельзя было изменить настоящий
+        public List<Course> GetCourses()
+        {
+            return courses.OrderBy(c => c.Title).ToList();
+        }
+
+        public override void ShowInfo()
+        {
+            base.ShowInfo();
+            Console.WriteLine($"  Группа:            {Group}");
+            Console.WriteLine($"  Курс обучения:     {Year}");
+            Console.WriteLine($"  Количество курсов: {courses.Count}");
+        }
+
+        public override string ToString()
+        {
+            return base.ToString() + $", группа {Group}";
+        }
+    }
+
+    // ученая степень преподавателя
+    enum AcademicDegree
+    {
+        None,       // без степени
+        Candidate,  // кандидат наук
+        Doctor      // доктор наук
+    }
+
+    // Наследование: преподаватель тоже Person, но со своими данными
+    class Teacher : Person
+    {
+        private static int nextId = 1;
+
+        public string Department { get; private set; }
+        public AcademicDegree Degree { get; private set; }
+        public int Experience { get; private set; }
+
+        // курсы, которые ведет преподаватель
+        private List<Course> courses = new List<Course>();
+
+        public Teacher(string fullName, int age, string phone, string email, string department, AcademicDegree degree, int experience)
+            : base(nextId++, fullName, age, phone, email)
+        {
+            Department = department;
+            Degree = degree;
+            Experience = experience;
+        }
+
+        public override string GetRole()
+        {
+            return "Преподаватель";
+        }
+
+        // internal: эти методы вызывает только Course, когда назначает преподавателя
+        internal void AddCourse(Course course)
+        {
+            if (!courses.Contains(course))
+                courses.Add(course);
+        }
+
+        internal void RemoveCourse(Course course)
+        {
+            courses.Remove(course);
+        }
+
+        public List<Course> GetCourses()
+        {
+            return courses.OrderBy(c => c.Title).ToList();
+        }
+
+        public string GetDegreeText()
+        {
+            switch (Degree)
+            {
+                case AcademicDegree.Candidate:
+                    return "кандидат наук";
+                case AcademicDegree.Doctor:
+                    return "доктор наук";
+                default:
+                    return "без степени";
+            }
+        }
+
+        public override void ShowInfo()
+        {
+            base.ShowInfo();
+            Console.WriteLine($"  Кафедра:           {Department}");
+            Console.WriteLine($"  Ученая степень:    {GetDegreeText()}");
+            Console.WriteLine($"  Стаж (лет):        {Experience}");
+
+            if (courses.Count == 0)
+            {
+                Console.WriteLine("  Ведет курсы:       пока нет");
+                return;
+            }
+            Console.WriteLine("  Ведет курсы:");
+            foreach (Course course in GetCourses())
+                Console.WriteLine($"    - {course.Title}");
+        }
+
+        public override string ToString()
+        {
+            return base.ToString() + $", кафедра \"{Department}\"";
+        }
+    }
+
+    class Course
+    {
+        private static int nextId = 1;
+
+        public int Id { get; private set; }
+        public string Title { get; private set; }
+        public int Hours { get; private set; }
+        public int MaxStudents { get; private set; }
+        public Teacher Teacher { get; private set; }
+
+        // студенты курса закрыты, записать можно только через Student.EnrollCourse
+        private List<Student> students = new List<Student>();
+
+        // у каждого курса есть преподаватель, поэтому без него курс не создается
+        public Course(string title, int hours, int maxStudents, Teacher teacher)
+        {
+            Id = nextId++;
+            Title = title;
+            Hours = hours;
+            MaxStudents = maxStudents;
+            SetTeacher(teacher);
+        }
+
+        public bool IsFull()
+        {
+            return students.Count >= MaxStudents;
+        }
+
+        // internal: вызывается только из Student.EnrollCourse,
+        // чтобы списки у студента и у курса всегда совпадали
+        internal void AddStudent(Student student)
+        {
+            if (!students.Contains(student))
+                students.Add(student);
+        }
+
+        // назначить или сменить преподавателя курса
+        public void SetTeacher(Teacher teacher)
+        {
+            if (teacher == null || teacher == Teacher)
+                return;
+
+            if (Teacher != null)
+                Teacher.RemoveCourse(this);
+
+            Teacher = teacher;
+            teacher.AddCourse(this);
+        }
+
+        public List<Student> GetStudents()
+        {
+            return students.OrderBy(s => s.FullName).ToList();
+        }
+
+        private string GetTeacherName()
+        {
+            if (Teacher == null)
+                return "не назначен";
+            return Teacher.FullName;
+        }
+
+        public void ShowInfo()
+        {
+            Console.WriteLine($"Курс №{Id}: {Title}");
+            Console.WriteLine($"  Часов:               {Hours}");
+            Console.WriteLine($"  Преподаватель:       {GetTeacherName()}");
+            if (Teacher != null)
+            {
+                Console.WriteLine($"  Кафедра:             {Teacher.Department}");
+                Console.WriteLine($"  Ученая степень:      {Teacher.GetDegreeText()}");
+            }
+            Console.WriteLine($"  Записано студентов:  {students.Count} из {MaxStudents}");
+            Console.WriteLine($"  Свободных мест:      {MaxStudents - students.Count}");
+        }
+
+        public override string ToString()
+        {
+            return $"№{Id} {Title}, {Hours} ч., преподаватель: {GetTeacherName()}, мест занято {students.Count}/{MaxStudents}";
+        }
+    }
+
+    // хранит всех участников учебного процесса и все курсы
+    class University
+    {
+        // Полиморфизм: студенты и преподаватели лежат в одном списке базового типа Person
+        private List<Person> people = new List<Person>();
+        private List<Course> courses = new List<Course>();
+
+        // принимает любого наследника Person - и студента, и преподавателя
+        public void AddPerson(Person person)
+        {
+            if (person != null && !people.Contains(person))
+                people.Add(person);
+        }
+
+        public void AddCourse(Course course)
+        {
+            if (course != null && !courses.Contains(course))
+                courses.Add(course);
+        }
+
+        // из общего списка выбираем только студентов или только преподавателей
+        public List<Student> GetStudents()
+        {
+            return people.OfType<Student>().ToList();
+        }
+
+        public List<Teacher> GetTeachers()
+        {
+            return people.OfType<Teacher>().ToList();
+        }
+
+        public List<Course> GetCourses()
+        {
+            return courses.ToList();
+        }
+
+        // поиск по номеру, если не нашли - вернется null
+        public Student FindStudent(int id)
+        {
+            return people.OfType<Student>().FirstOrDefault(s => s.Id == id);
+        }
+
+        public Teacher FindTeacher(int id)
+        {
+            return people.OfType<Teacher>().FirstOrDefault(t => t.Id == id);
+        }
+
+        public Course FindCourse(int id)
+        {
+            return courses.FirstOrDefault(c => c.Id == id);
+        }
+
+        // у двух людей не может быть одинакового email
+        public bool EmailExists(string email)
+        {
+            return people.Any(p => p.Email.ToLower() == email.ToLower());
+        }
+
+        // два курса с одинаковым названием создать нельзя
+        public bool CourseExists(string title)
+        {
+            return courses.Any(c => c.Title.ToLower() == title.ToLower());
+        }
+    }
+
     class Program
     {
         static University university = new University();
