@@ -705,4 +705,110 @@ namespace RoguelikeGame
             return CreateBoss((BossType)types.GetValue(Dice.Range(0, types.Length - 1)));
         }
     }
+
+    // ===== Игра =====
+
+    class Game
+    {
+        private Player player = new Player();
+        private int turn = 0;
+        private int enemiesKilled = 0;
+        private int bossesKilled = 0;
+        private int chestsOpened = 0;
+
+        public void Run()
+        {
+            Console.WriteLine("\nВы спускаетесь в подземелье. Удачи!");
+
+            while (player.IsAlive)
+            {
+                turn++;
+                Console.WriteLine($"\n================ Ход {turn} ================");
+                player.ShowStatus();
+
+                // каждые N ходов - босс, иначе 50 на 50: сундук или враг
+                if (turn % GameSettings.Instance.BossEveryTurns == 0)
+                    Fight(EnemyFactory.CreateRandomBoss());
+                else if (Dice.Chance(GameSettings.Instance.ChestChance))
+                    OpenChest();
+                else
+                    Fight(EnemyFactory.CreateRandomEnemy());
+
+                if (player.IsAlive && ConsoleInput.ReadNumber("\n1 - идти дальше, 0 - закончить игру: ", 0, 1) == 0)
+                    break;
+            }
+
+            ShowResults();
+        }
+
+        private void OpenChest()
+        {
+            chestsOpened++;
+            Item item = ItemFactory.CreateRandomItem();
+            Console.WriteLine($"\nВы нашли сундук! Внутри: {item.GetInfo()}");
+            item.Use(player); // зелье лечит, оружие и доспех предлагают замену
+        }
+
+        private void Fight(Enemy enemy)
+        {
+            Console.WriteLine(enemy.IsBoss ? "\n!!! Перед вами БОСС !!!" : "\nНа вас напал враг!");
+            enemy.ShowInfo();
+            player.Unfreeze();
+
+            while (player.IsAlive && enemy.IsAlive)
+            {
+                Console.WriteLine($"\nВы: {player.Hp}/{player.MaxHp} HP   |   {enemy.Name}: {enemy.Hp}/{enemy.MaxHp} HP");
+
+                // игрок всегда ходит первым, если не заморожен
+                if (player.IsFrozen)
+                {
+                    Console.WriteLine("Вы заморожены и пропускаете ход!");
+                    player.Unfreeze();
+                }
+                else
+                {
+                    switch (ConsoleInput.ReadNumber("1 - Атака, 2 - Защита: ", 1, 2))
+                    {
+                        case 1:
+                            int damage = enemy.TakeDamage(player.RollDamage());
+                            Console.WriteLine($"Вы ударили {enemy.Name} на {damage} урона");
+                            break;
+                        case 2:
+                            player.Defend();
+                            Console.WriteLine("Вы встали в защитную стойку");
+                            break;
+                    }
+                }
+
+                if (!enemy.IsAlive)
+                    break;
+
+                // после хода игрока враг всегда атакует
+                enemy.AttackPlayer(player);
+            }
+
+            if (player.IsAlive)
+            {
+                enemiesKilled++;
+                if (enemy.IsBoss)
+                    bossesKilled++;
+                Console.WriteLine($"\nПобеда! {enemy.Name} повержен.");
+            }
+            else
+            {
+                Console.WriteLine($"\nВы погибли в бою с {enemy.Name}...");
+            }
+        }
+
+        private void ShowResults()
+        {
+            Console.WriteLine("\n============ ИГРА ОКОНЧЕНА ============");
+            Console.WriteLine(player.IsAlive ? "Вы вышли из подземелья живым." : "Подземелье оказалось сильнее.");
+            Console.WriteLine($"Пройдено ходов:    {turn}");
+            Console.WriteLine($"Побеждено врагов:  {enemiesKilled} (из них боссов: {bossesKilled})");
+            Console.WriteLine($"Открыто сундуков:  {chestsOpened}");
+            Console.WriteLine($"Последнее оружие:  {player.Weapon.GetInfo()}");
+            Console.WriteLine($"Последний доспех:  {player.Armor.GetInfo()}");
+        }
+    }
 }
