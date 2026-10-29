@@ -405,4 +405,196 @@ namespace RoguelikeGame
             Console.WriteLine($"Доспех:   {Armor.GetInfo()}");
         }
     }
+
+    // ===== Враги =====
+
+    // Абстракция: общие характеристики всех врагов - здоровье, атака, защита
+    abstract class Enemy
+    {
+        public string Name { get; private set; }
+        public int MaxHp { get; private set; }
+        public int Hp { get; private set; }
+        public int Attack { get; private set; }
+        public int Defense { get; private set; }
+        public bool IsBoss { get; private set; }
+
+        protected Enemy(string name, int hp, int attack, int defense, bool isBoss)
+        {
+            Name = name;
+            MaxHp = hp;
+            Hp = hp;
+            Attack = attack;
+            Defense = defense;
+            IsBoss = isBoss;
+        }
+
+        public bool IsAlive
+        {
+            get { return Hp > 0; }
+        }
+
+        public abstract string GetRace();
+        public abstract string GetAbility();
+
+        // для боссов: базовая характеристика, умноженная на множитель
+        protected static int Scale(int value, double multiplier)
+        {
+            return (int)Math.Round(value * multiplier);
+        }
+
+        // игрок бьет врага: защита врага уменьшает урон, но хотя бы 1 урон проходит
+        public int TakeDamage(int damage)
+        {
+            int realDamage = Math.Max(1, damage - Defense);
+            Hp = Math.Max(0, Hp - realDamage);
+            return realDamage;
+        }
+
+        // атака врага: порядок у всех одинаковый,
+        // а особенности (крит, игнор брони, заморозка) у каждого свои - полиморфизм
+        public void AttackPlayer(Player player)
+        {
+            GameSettings settings = GameSettings.Instance;
+            int damage = Math.Max(1, Attack * Dice.Range(settings.DamageMinPercent, settings.DamageMaxPercent) / 100);
+
+            Console.WriteLine($"{Name} атакует!");
+            damage = ApplyCrit(damage);
+            bool hit = player.TakeHit(damage, IgnoresArmor());
+            if (hit && player.IsAlive)
+                AfterHit(player);
+        }
+
+        protected virtual int ApplyCrit(int damage)
+        {
+            return damage;
+        }
+
+        protected virtual bool IgnoresArmor()
+        {
+            return false;
+        }
+
+        protected virtual void AfterHit(Player player)
+        {
+        }
+
+        // заморозка - общая для магов и Пестова
+        protected void TryFreeze(Player player, int chance)
+        {
+            if (Dice.Chance(chance))
+            {
+                player.Freeze();
+                Console.WriteLine($"  {Name} наложил заморозку! Вы пропустите следующий ход");
+            }
+        }
+
+        public void ShowInfo()
+        {
+            string title = IsBoss ? "БОСС" : "Враг";
+            Console.WriteLine($"{title}: {Name} (раса: {GetRace()})");
+            Console.WriteLine($"  Здоровье: {Hp}   Атака: {Attack}   Защита: {Defense}");
+            Console.WriteLine($"  Особенность: {GetAbility()}");
+        }
+    }
+
+    // Гоблин - шанс критического урона
+    class Goblin : Enemy
+    {
+        public int CritChance { get; private set; }
+
+        public Goblin() : this("Гоблин", 1.0, 1.0, 1.0, 0, false) { }
+
+        // protected - этот конструктор нужен боссам-гоблинам: множители к базовым характеристикам
+        protected Goblin(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, int critBonus, bool isBoss)
+            : base(name,
+                   Scale(GameSettings.Instance.GoblinHp, hpMultiplier),
+                   Scale(GameSettings.Instance.GoblinAttack, attackMultiplier),
+                   Scale(GameSettings.Instance.GoblinDefense, defenseMultiplier),
+                   isBoss)
+        {
+            CritChance = GameSettings.Instance.GoblinCritChance + critBonus;
+        }
+
+        public override string GetRace()
+        {
+            return "гоблин";
+        }
+
+        public override string GetAbility()
+        {
+            return $"шанс критического удара {CritChance}% (урон x{GameSettings.Instance.CritMultiplier})";
+        }
+
+        protected override int ApplyCrit(int damage)
+        {
+            if (!Dice.Chance(CritChance))
+                return damage;
+
+            Console.WriteLine("  Критический удар!");
+            return (int)(damage * GameSettings.Instance.CritMultiplier);
+        }
+    }
+
+    // Скелет - игнорирует защиту игрока
+    class Skeleton : Enemy
+    {
+        public Skeleton() : this("Скелет", 1.0, 1.0, 1.0, false) { }
+
+        protected Skeleton(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, bool isBoss)
+            : base(name,
+                   Scale(GameSettings.Instance.SkeletonHp, hpMultiplier),
+                   Scale(GameSettings.Instance.SkeletonAttack, attackMultiplier),
+                   Scale(GameSettings.Instance.SkeletonDefense, defenseMultiplier),
+                   isBoss)
+        {
+        }
+
+        public override string GetRace()
+        {
+            return "скелет";
+        }
+
+        public override string GetAbility()
+        {
+            return "игнорирует защиту игрока";
+        }
+
+        protected override bool IgnoresArmor()
+        {
+            return true;
+        }
+    }
+
+    // Маг - шанс наложить заморозку (игрок пропускает ход)
+    class Mage : Enemy
+    {
+        public int FreezeChance { get; private set; }
+
+        public Mage() : this("Маг", 1.0, 1.0, 1.0, 0, false) { }
+
+        protected Mage(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, int freezeBonus, bool isBoss)
+            : base(name,
+                   Scale(GameSettings.Instance.MageHp, hpMultiplier),
+                   Scale(GameSettings.Instance.MageAttack, attackMultiplier),
+                   Scale(GameSettings.Instance.MageDefense, defenseMultiplier),
+                   isBoss)
+        {
+            FreezeChance = GameSettings.Instance.MageFreezeChance + freezeBonus;
+        }
+
+        public override string GetRace()
+        {
+            return "маг";
+        }
+
+        public override string GetAbility()
+        {
+            return $"шанс заморозки {FreezeChance}% (вы пропускаете ход)";
+        }
+
+        protected override void AfterHit(Player player)
+        {
+            TryFreeze(player, FreezeChance);
+        }
+    }
 }
