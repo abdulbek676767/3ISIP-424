@@ -597,4 +597,112 @@ namespace RoguelikeGame
             TryFreeze(player, FreezeChance);
         }
     }
+
+    // ===== Боссы =====
+    // Наследование: каждый босс - это враг своей расы с усиленными характеристиками
+
+    // ВВГ (гоблин): здоровье x2.0, атака x1.5, защита x1.2, крит +10%
+    class Vvg : Goblin
+    {
+        public Vvg() : base("ВВГ", 2.0, 1.5, 1.2, 10, true) { }
+    }
+
+    // Ковальский (скелет): здоровье x2.5, атака x1.3, защита x1.4
+    class Kowalski : Skeleton
+    {
+        public Kowalski() : base("Ковальский", 2.5, 1.3, 1.4, true) { }
+    }
+
+    // Архимаг C++ (маг): здоровье x1.8, атака x1.6, защита x1.1, заморозка +10%
+    class ArchMage : Mage
+    {
+        public ArchMage() : base("Архимаг C++", 1.8, 1.6, 1.1, 10, true) { }
+    }
+
+    // Пестов С-- (скелет): здоровье x1.3, атака x1.8, защита x0.6,
+    // игнорирует защиту, как скелет, и может заморозить: шанс мага +15%
+    class Pestov : Skeleton
+    {
+        public int FreezeChance { get; private set; }
+
+        public Pestov() : base("Пестов С--", 1.3, 1.8, 0.6, true)
+        {
+            FreezeChance = GameSettings.Instance.MageFreezeChance + 15;
+        }
+
+        public override string GetAbility()
+        {
+            return base.GetAbility() + $", шанс заморозки {FreezeChance}%";
+        }
+
+        protected override void AfterHit(Player player)
+        {
+            TryFreeze(player, FreezeChance);
+        }
+    }
+
+    enum EnemyType
+    {
+        Goblin,
+        Skeleton,
+        Mage
+    }
+
+    enum BossType
+    {
+        Vvg,
+        Kowalski,
+        ArchMage,
+        Pestov
+    }
+
+    // Простая фабрика: создание врагов собрано в одном месте,
+    // поэтому новый тип врага добавляется одной строкой case
+    class EnemyFactory
+    {
+        public static Enemy CreateEnemy(EnemyType type)
+        {
+            switch (type)
+            {
+                case EnemyType.Goblin:
+                    return new Goblin();
+                case EnemyType.Skeleton:
+                    return new Skeleton();
+                case EnemyType.Mage:
+                    return new Mage();
+                default:
+                    return null;
+            }
+        }
+
+        public static Enemy CreateBoss(BossType type)
+        {
+            switch (type)
+            {
+                case BossType.Vvg:
+                    return new Vvg();
+                case BossType.Kowalski:
+                    return new Kowalski();
+                case BossType.ArchMage:
+                    return new ArchMage();
+                case BossType.Pestov:
+                    return new Pestov();
+                default:
+                    return null;
+            }
+        }
+
+        // тип врага выбирается случайно из всех значений перечисления
+        public static Enemy CreateRandomEnemy()
+        {
+            Array types = Enum.GetValues(typeof(EnemyType));
+            return CreateEnemy((EnemyType)types.GetValue(Dice.Range(0, types.Length - 1)));
+        }
+
+        public static Enemy CreateRandomBoss()
+        {
+            Array types = Enum.GetValues(typeof(BossType));
+            return CreateBoss((BossType)types.GetValue(Dice.Range(0, types.Length - 1)));
+        }
+    }
 }
