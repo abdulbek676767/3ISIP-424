@@ -811,4 +811,75 @@ namespace RoguelikeGame
             Console.WriteLine($"Последний доспех:  {player.Armor.GetInfo()}");
         }
     }
+
+    // ===== Главное меню =====
+
+    class Program
+    {
+        static void Main()
+        {
+            while (true)
+            {
+                Console.WriteLine("\n========= ТЕКСТОВЫЙ РОГАЛИК =========");
+                Console.WriteLine("1 - Новая игра");
+                Console.WriteLine("2 - Настройки");
+                Console.WriteLine("0 - Выход");
+
+                switch (ConsoleInput.ReadNumber("Выберите пункт: ", 0, 2))
+                {
+                    case 1:
+                        Game game = new Game();
+                        game.Run();
+                        break;
+                    case 2:
+                        EditSettings();
+                        break;
+                    case 0:
+                        Console.WriteLine("До встречи!");
+                        return;
+                }
+            }
+        }
+
+        // настройки хранятся в одиночке GameSettings, поэтому изменения видны во всей игре
+        static void EditSettings()
+        {
+            GameSettings settings = GameSettings.Instance;
+            while (true)
+            {
+                Console.WriteLine();
+                settings.ShowInfo();
+                Console.WriteLine("\nЧто изменить?");
+                Console.WriteLine("1 - шанс сундука");
+                Console.WriteLine("2 - шанс уклонения в защите");
+                Console.WriteLine("3 - шанс крита гоблина");
+                Console.WriteLine("4 - шанс заморозки мага");
+                Console.WriteLine("5 - как часто появляется босс");
+                Console.WriteLine("0 - назад");
+
+                bool changed;
+                switch (ConsoleInput.ReadNumber("Выберите пункт: ", 0, 5))
+                {
+                    case 1:
+                        changed = settings.Change(SettingType.ChestChance, ConsoleInput.ReadNumber("Новый шанс сундука (0-100): ", 0, 100));
+                        break;
+                    case 2:
+                        changed = settings.Change(SettingType.DodgeChance, ConsoleInput.ReadNumber("Новый шанс уклонения (0-100): ", 0, 100));
+                        break;
+                    case 3:
+                        changed = settings.Change(SettingType.GoblinCritChance, ConsoleInput.ReadNumber("Новый шанс крита (0-100): ", 0, 100));
+                        break;
+                    case 4:
+                        changed = settings.Change(SettingType.MageFreezeChance, ConsoleInput.ReadNumber("Новый шанс заморозки (0-100): ", 0, 100));
+                        break;
+                    case 5:
+                        changed = settings.Change(SettingType.BossEveryTurns, ConsoleInput.ReadNumber("Босс каждые сколько ходов (2-50): ", 2, 50));
+                        break;
+                    default:
+                        return;
+                }
+                Console.WriteLine(changed ? "Настройка сохранена" : "Ошибка: недопустимое значение");
+            }
+        }
+    }
 }
