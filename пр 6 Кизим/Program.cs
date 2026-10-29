@@ -165,4 +165,142 @@ namespace RoguelikeGame
             }
         }
     }
+
+    // ===== Предметы =====
+
+    enum ItemType
+    {
+        Potion,
+        Weapon,
+        Armor
+    }
+
+    // общий класс для всего, что лежит в сундуке
+    abstract class Item
+    {
+        public string Name { get; private set; }
+
+        protected Item(string name)
+        {
+            Name = name;
+        }
+
+        public abstract string GetInfo();
+
+        // Полиморфизм: каждый предмет сам знает, что с ним делать
+        public abstract void Use(Player player);
+    }
+
+    class HealthPotion : Item
+    {
+        public HealthPotion() : base("Лечебное зелье") { }
+
+        public override string GetInfo()
+        {
+            return $"{Name} (полностью восстанавливает здоровье)";
+        }
+
+        public override void Use(Player player)
+        {
+            player.Heal();
+            Console.WriteLine($"Вы выпили зелье. Здоровье восстановлено: {player.Hp}/{player.MaxHp}");
+        }
+    }
+
+    class Weapon : Item
+    {
+        public int Damage { get; private set; }
+
+        public Weapon(string name, int damage) : base(name)
+        {
+            Damage = damage;
+        }
+
+        public override string GetInfo()
+        {
+            return $"{Name} (урон {Damage})";
+        }
+
+        // показать новое и текущее оружие и дать выбор
+        public override void Use(Player player)
+        {
+            Console.WriteLine($"  Новое оружие:   {GetInfo()}");
+            Console.WriteLine($"  Текущее оружие: {player.Weapon.GetInfo()}");
+            if (ConsoleInput.ReadNumber("1 - взять новое, 2 - выбросить: ", 1, 2) == 1)
+            {
+                player.Equip(this);
+                Console.WriteLine($"Теперь у вас в руках: {GetInfo()}");
+            }
+            else
+                Console.WriteLine("Вы выбросили находку");
+        }
+    }
+
+    class Armor : Item
+    {
+        public int Defense { get; private set; }
+
+        public Armor(string name, int defense) : base(name)
+        {
+            Defense = defense;
+        }
+
+        public override string GetInfo()
+        {
+            return $"{Name} (защита {Defense})";
+        }
+
+        public override void Use(Player player)
+        {
+            Console.WriteLine($"  Новый доспех:   {GetInfo()}");
+            Console.WriteLine($"  Текущий доспех: {player.Armor.GetInfo()}");
+            if (ConsoleInput.ReadNumber("1 - надеть новый, 2 - выбросить: ", 1, 2) == 1)
+            {
+                player.Equip(this);
+                Console.WriteLine($"Теперь на вас: {GetInfo()}");
+            }
+            else
+                Console.WriteLine("Вы выбросили находку");
+        }
+    }
+
+    // Простая фабрика: только она решает, какой именно предмет создать
+    class ItemFactory
+    {
+        private static string[] weaponNames = { "Меч", "Топор", "Кинжал", "Булава", "Копье", "Боевой молот" };
+        private static string[] armorNames = { "Кожаная куртка", "Стеганка", "Кольчуга", "Чешуйчатый доспех", "Латы" };
+
+        public static Item CreateItem(ItemType type)
+        {
+            GameSettings settings = GameSettings.Instance;
+            switch (type)
+            {
+                case ItemType.Potion:
+                    return new HealthPotion();
+                case ItemType.Weapon:
+                    return new Weapon(RandomName(weaponNames), Dice.Range(settings.WeaponMinDamage, settings.WeaponMaxDamage));
+                case ItemType.Armor:
+                    return new Armor(RandomName(armorNames), Dice.Range(settings.ArmorMinDefense, settings.ArmorMaxDefense));
+                default:
+                    return null;
+            }
+        }
+
+        // что лежит в сундуке - решает случай
+        public static Item CreateRandomItem()
+        {
+            GameSettings settings = GameSettings.Instance;
+            int roll = Dice.Range(1, 100);
+            if (roll <= settings.PotionChance)
+                return CreateItem(ItemType.Potion);
+            if (roll <= settings.PotionChance + settings.WeaponChance)
+                return CreateItem(ItemType.Weapon);
+            return CreateItem(ItemType.Armor);
+        }
+
+        private static string RandomName(string[] names)
+        {
+            return names[Dice.Range(0, names.Length - 1)];
+        }
+    }
 }
