@@ -303,4 +303,106 @@ namespace RoguelikeGame
             return names[Dice.Range(0, names.Length - 1)];
         }
     }
+
+    // ===== Игрок =====
+
+    class Player
+    {
+        public int MaxHp { get; private set; }
+        public int Hp { get; private set; }
+        public Weapon Weapon { get; private set; }
+        public Armor Armor { get; private set; }
+        public bool IsDefending { get; private set; }
+        public bool IsFrozen { get; private set; }
+
+        public Player()
+        {
+            GameSettings settings = GameSettings.Instance;
+            MaxHp = settings.PlayerMaxHp;
+            Hp = MaxHp;
+            Weapon = new Weapon("Деревянная палка", settings.StartWeaponDamage);
+            Armor = new Armor("Рваная рубаха", settings.StartArmorDefense);
+        }
+
+        public bool IsAlive
+        {
+            get { return Hp > 0; }
+        }
+
+        public void Heal()
+        {
+            Hp = MaxHp;
+        }
+
+        // одно оружие и один доспех одновременно: новый предмет заменяет старый
+        public void Equip(Weapon weapon)
+        {
+            Weapon = weapon;
+        }
+
+        public void Equip(Armor armor)
+        {
+            Armor = armor;
+        }
+
+        // урон игрока: урон оружия со случайным разбросом
+        public int RollDamage()
+        {
+            GameSettings settings = GameSettings.Instance;
+            return Weapon.Damage * Dice.Range(settings.DamageMinPercent, settings.DamageMaxPercent) / 100;
+        }
+
+        public void Defend()
+        {
+            IsDefending = true;
+        }
+
+        public void Freeze()
+        {
+            IsFrozen = true;
+        }
+
+        public void Unfreeze()
+        {
+            IsFrozen = false;
+        }
+
+        // удар врага по игроку; false - если игрок уклонился
+        public bool TakeHit(int damage, bool ignoreArmor)
+        {
+            GameSettings settings = GameSettings.Instance;
+            if (IsDefending)
+            {
+                IsDefending = false; // защита действует только на одну атаку
+
+                if (Dice.Chance(settings.DodgeChance))
+                {
+                    Console.WriteLine("  Вы уклонились от атаки!");
+                    return false;
+                }
+
+                if (ignoreArmor)
+                {
+                    Console.WriteLine("  Враг игнорирует вашу защиту - блок не сработал!");
+                }
+                else
+                {
+                    int block = Armor.Defense * Dice.Range(settings.BlockMinPercent, settings.BlockMaxPercent) / 100;
+                    damage = Math.Max(0, damage - block);
+                    Console.WriteLine($"  Уклониться не вышло, но блок поглотил {block} урона");
+                }
+            }
+
+            Hp = Math.Max(0, Hp - damage);
+            Console.WriteLine($"  Вы получили {damage} урона. Здоровье: {Hp}/{MaxHp}");
+            return true;
+        }
+
+        public void ShowStatus()
+        {
+            Console.WriteLine($"Здоровье: {Hp}/{MaxHp}");
+            Console.WriteLine($"Оружие:   {Weapon.GetInfo()}");
+            Console.WriteLine($"Доспех:   {Armor.GetInfo()}");
+        }
+    }
 }
