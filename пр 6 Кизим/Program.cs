@@ -1,884 +1,299 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace RoguelikeGame
+namespace Rogalik
 {
-    // ===== Настройки игры (паттерн Singleton) =====
-
-    // настройки, которые можно изменить из меню
-    enum SettingType
+    // Singleton - все шансы и случайные величины игры хранятся в одном месте
+    class Settings
     {
-        ChestChance,
-        DodgeChance,
-        GoblinCritChance,
-        MageFreezeChance,
-        BossEveryTurns
+        private static readonly Settings _instance = new Settings();
+        private Settings() { }
+        public static Settings Instance { get { return _instance; } }
+        private Random rnd = new Random();
+        public readonly int ChestChance = 50, BossEvery = 10;
+        public readonly int PlayerHp = 100, DodgeChance = 40, BlockMin = 70, BlockMax = 100;
+        public readonly int DmgMin = 80, DmgMax = 120; // разброс урона в %
+        public readonly int GoblinHp = 25, GoblinAtk = 7, GoblinDef = 1, GoblinCrit = 20;
+        public readonly int SkeletonHp = 30, SkeletonAtk = 6, SkeletonDef = 2;
+        public readonly int MageHp = 20, MageAtk = 9, MageDef = 0, MageFreeze = 25;
+        public readonly int PotionChance = 30, WeaponChance = 35, WeaponMin = 8, WeaponMax = 20, ArmorMin = 2, ArmorMax = 10;
+        public bool Chance(int percent) => rnd.Next(100) < percent;
+        public int Range(int min, int max) => rnd.Next(min, max + 1);
+        public int Spread(int value) => value * Range(DmgMin, DmgMax) / 100;
     }
-
-    // Singleton: у игры ровно один экземпляр настроек и одна точка доступа к нему - GameSettings.Instance.
-    // Здесь собраны все шансы и случайные величины, чтобы менять баланс игры в одном месте.
-    class GameSettings
+    static class Input
     {
-        // единственный экземпляр, создается один раз
-        private static readonly GameSettings _instance = new GameSettings();
-
-        // приватный конструктор - создать второй экземпляр нигде нельзя
-        private GameSettings() { }
-
-        public static GameSettings Instance
-        {
-            get { return _instance; }
-        }
-
-        // события хода
-        public int ChestChance { get; private set; } = 50;      // шанс сундука, иначе враг (%)
-        public int BossEveryTurns { get; private set; } = 10;   // босс каждые N ходов
-
-        // игрок
-        public int PlayerMaxHp { get; private set; } = 100;
-        public int StartWeaponDamage { get; private set; } = 10;
-        public int StartArmorDefense { get; private set; } = 3;
-        public int DodgeChance { get; private set; } = 40;      // шанс уклониться в защите (%)
-        public int BlockMinPercent { get; private set; } = 70;  // блок поглощает от 70%
-        public int BlockMaxPercent { get; private set; } = 100; // до 100% от защиты доспеха
-
-        // разброс любого удара: от 80% до 120% от атаки
-        public int DamageMinPercent { get; private set; } = 80;
-        public int DamageMaxPercent { get; private set; } = 120;
-
-        // гоблин
-        public int GoblinHp { get; private set; } = 25;
-        public int GoblinAttack { get; private set; } = 7;
-        public int GoblinDefense { get; private set; } = 1;
-        public int GoblinCritChance { get; private set; } = 20; // (%)
-        public double CritMultiplier { get; private set; } = 2.0;
-
-        // скелет
-        public int SkeletonHp { get; private set; } = 30;
-        public int SkeletonAttack { get; private set; } = 6;
-        public int SkeletonDefense { get; private set; } = 2;
-
-        // маг
-        public int MageHp { get; private set; } = 20;
-        public int MageAttack { get; private set; } = 9;
-        public int MageDefense { get; private set; } = 0;
-        public int MageFreezeChance { get; private set; } = 25; // (%)
-
-        // что выпадает из сундука (остальное - доспех)
-        public int PotionChance { get; private set; } = 30;     // (%)
-        public int WeaponChance { get; private set; } = 35;     // (%)
-        public int WeaponMinDamage { get; private set; } = 8;
-        public int WeaponMaxDamage { get; private set; } = 20;
-        public int ArmorMinDefense { get; private set; } = 2;
-        public int ArmorMaxDefense { get; private set; } = 10;
-
-        // изменить настройку; false - если значение вне допустимых границ
-        public bool Change(SettingType type, int value)
-        {
-            switch (type)
-            {
-                case SettingType.ChestChance:
-                    if (!IsPercent(value)) return false;
-                    ChestChance = value;
-                    return true;
-                case SettingType.DodgeChance:
-                    if (!IsPercent(value)) return false;
-                    DodgeChance = value;
-                    return true;
-                case SettingType.GoblinCritChance:
-                    if (!IsPercent(value)) return false;
-                    GoblinCritChance = value;
-                    return true;
-                case SettingType.MageFreezeChance:
-                    if (!IsPercent(value)) return false;
-                    MageFreezeChance = value;
-                    return true;
-                case SettingType.BossEveryTurns:
-                    if (value < 2 || value > 50) return false;
-                    BossEveryTurns = value;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool IsPercent(int value)
-        {
-            return value >= 0 && value <= 100;
-        }
-
-        public void ShowInfo()
-        {
-            Console.WriteLine("--- Текущие настройки ---");
-            Console.WriteLine($"  Шанс сундука (иначе враг):  {ChestChance}%");
-            Console.WriteLine($"  Босс появляется каждые:     {BossEveryTurns} ходов");
-            Console.WriteLine($"  Здоровье игрока:            {PlayerMaxHp}");
-            Console.WriteLine($"  Шанс уклонения в защите:    {DodgeChance}%");
-            Console.WriteLine($"  Блок в защите:              {BlockMinPercent}-{BlockMaxPercent}% от защиты доспеха");
-            Console.WriteLine($"  Разброс урона:              {DamageMinPercent}-{DamageMaxPercent}% от атаки");
-            Console.WriteLine($"  Гоблин:  HP {GoblinHp}, атака {GoblinAttack}, защита {GoblinDefense}, крит {GoblinCritChance}% (x{CritMultiplier})");
-            Console.WriteLine($"  Скелет:  HP {SkeletonHp}, атака {SkeletonAttack}, защита {SkeletonDefense}, игнорирует защиту игрока");
-            Console.WriteLine($"  Маг:     HP {MageHp}, атака {MageAttack}, защита {MageDefense}, заморозка {MageFreezeChance}%");
-            Console.WriteLine($"  Сундук:  зелье {PotionChance}%, оружие {WeaponChance}%, доспех {100 - PotionChance - WeaponChance}%");
-            Console.WriteLine($"  Оружие:  урон {WeaponMinDamage}-{WeaponMaxDamage}, доспех: защита {ArmorMinDefense}-{ArmorMaxDefense}");
-        }
-    }
-
-    // все случайности игры проходят через один генератор
-    static class Dice
-    {
-        private static Random random = new Random();
-
-        // true с вероятностью percent процентов
-        public static bool Chance(int percent)
-        {
-            return random.Next(100) < percent;
-        }
-
-        // случайное целое число от min до max включительно
-        public static int Range(int min, int max)
-        {
-            return random.Next(min, max + 1);
-        }
-    }
-
-    // ввод с проверкой, чтобы программа не вылетала
-    static class ConsoleInput
-    {
-        public static int ReadNumber(string message, int min, int max)
+        public static int Number(string text, int min, int max)
         {
             while (true)
             {
-                Console.Write(message);
-                string input = Console.ReadLine();
-                if (input == null)
-                    Environment.Exit(0); // ввод закончился (Ctrl+Z) - закрываем программу
-
-                int number;
-                if (!int.TryParse(input.Trim(), out number))
-                    Console.WriteLine("Ошибка: введите целое число");
-                else if (number < min || number > max)
-                    Console.WriteLine($"Ошибка: введите число от {min} до {max}");
-                else
-                    return number;
+                Console.Write(text);
+                string line = Console.ReadLine();
+                if (line == null) Environment.Exit(0);
+                if (int.TryParse(line, out int n) && n >= min && n <= max) return n;
+                Console.WriteLine($"Ошибка! Введите число от {min} до {max}");
             }
         }
     }
 
-    // ===== Предметы =====
-
-    enum ItemType
-    {
-        Potion,
-        Weapon,
-        Armor
-    }
-
-    // общий класс для всего, что лежит в сундуке
+    // ---------- Предметы ----------
+    enum ItemType { Potion, Weapon, Armor }
     abstract class Item
     {
-        public string Name { get; private set; }
-
-        protected Item(string name)
-        {
-            Name = name;
-        }
-
-        public abstract string GetInfo();
-
-        // Полиморфизм: каждый предмет сам знает, что с ним делать
+        public string Name { get; }
+        protected Item(string name) { Name = name; }
         public abstract void Use(Player player);
+        public override string ToString() => Name;
     }
-
-    class HealthPotion : Item
+    class Potion : Item
     {
-        public HealthPotion() : base("Лечебное зелье") { }
-
-        public override string GetInfo()
-        {
-            return $"{Name} (полностью восстанавливает здоровье)";
-        }
-
-        public override void Use(Player player)
-        {
-            player.Heal();
-            Console.WriteLine($"Вы выпили зелье. Здоровье восстановлено: {player.Hp}/{player.MaxHp}");
-        }
+        public Potion() : base("Лечебное зелье") { }
+        public override void Use(Player player) { player.Heal(); Console.WriteLine($"Здоровье восстановлено: {player.Hp}"); }
     }
-
     class Weapon : Item
     {
-        public int Damage { get; private set; }
-
-        public Weapon(string name, int damage) : base(name)
-        {
-            Damage = damage;
-        }
-
-        public override string GetInfo()
-        {
-            return $"{Name} (урон {Damage})";
-        }
-
-        // показать новое и текущее оружие и дать выбор
+        public int Damage { get; }
+        public Weapon(string name, int damage) : base(name) { Damage = damage; }
+        public override string ToString() => $"{Name} (урон {Damage})";
         public override void Use(Player player)
         {
-            Console.WriteLine($"  Новое оружие:   {GetInfo()}");
-            Console.WriteLine($"  Текущее оружие: {player.Weapon.GetInfo()}");
-            if (ConsoleInput.ReadNumber("1 - взять новое, 2 - выбросить: ", 1, 2) == 1)
-            {
-                player.Equip(this);
-                Console.WriteLine($"Теперь у вас в руках: {GetInfo()}");
-            }
-            else
-                Console.WriteLine("Вы выбросили находку");
+            Console.WriteLine($"Новое оружие: {this}\nТекущее:      {player.Weapon}");
+            if (Input.Number("1 - взять, 2 - выбросить: ", 1, 2) == 1) player.Equip(this);
         }
     }
-
     class Armor : Item
     {
-        public int Defense { get; private set; }
-
-        public Armor(string name, int defense) : base(name)
-        {
-            Defense = defense;
-        }
-
-        public override string GetInfo()
-        {
-            return $"{Name} (защита {Defense})";
-        }
-
+        public int Defense { get; }
+        public Armor(string name, int defense) : base(name) { Defense = defense; }
+        public override string ToString() => $"{Name} (защита {Defense})";
         public override void Use(Player player)
         {
-            Console.WriteLine($"  Новый доспех:   {GetInfo()}");
-            Console.WriteLine($"  Текущий доспех: {player.Armor.GetInfo()}");
-            if (ConsoleInput.ReadNumber("1 - надеть новый, 2 - выбросить: ", 1, 2) == 1)
-            {
-                player.Equip(this);
-                Console.WriteLine($"Теперь на вас: {GetInfo()}");
-            }
-            else
-                Console.WriteLine("Вы выбросили находку");
+            Console.WriteLine($"Новый доспех: {this}\nТекущий:      {player.Armor}");
+            if (Input.Number("1 - надеть, 2 - выбросить: ", 1, 2) == 1) player.Equip(this);
         }
     }
-
-    // Простая фабрика: только она решает, какой именно предмет создать
+    // простая фабрика предметов
     class ItemFactory
     {
-        private static string[] weaponNames = { "Меч", "Топор", "Кинжал", "Булава", "Копье", "Боевой молот" };
-        private static string[] armorNames = { "Кожаная куртка", "Стеганка", "Кольчуга", "Чешуйчатый доспех", "Латы" };
-
-        public static Item CreateItem(ItemType type)
+        static string[] weapons = { "Меч", "Топор", "Кинжал", "Булава", "Копье" };
+        static string[] armors = { "Кожанка", "Кольчуга", "Латы", "Стеганка" };
+        public static Item Create(ItemType type)
         {
-            GameSettings settings = GameSettings.Instance;
+            Settings s = Settings.Instance;
             switch (type)
             {
-                case ItemType.Potion:
-                    return new HealthPotion();
-                case ItemType.Weapon:
-                    return new Weapon(RandomName(weaponNames), Dice.Range(settings.WeaponMinDamage, settings.WeaponMaxDamage));
-                case ItemType.Armor:
-                    return new Armor(RandomName(armorNames), Dice.Range(settings.ArmorMinDefense, settings.ArmorMaxDefense));
-                default:
-                    return null;
+                case ItemType.Potion: return new Potion();
+                case ItemType.Weapon: return new Weapon(weapons[s.Range(0, weapons.Length - 1)], s.Range(s.WeaponMin, s.WeaponMax));
+                case ItemType.Armor: return new Armor(armors[s.Range(0, armors.Length - 1)], s.Range(s.ArmorMin, s.ArmorMax));
+                default: return null;
             }
         }
-
-        // что лежит в сундуке - решает случай
-        public static Item CreateRandomItem()
+        public static Item CreateRandom()
         {
-            GameSettings settings = GameSettings.Instance;
-            int roll = Dice.Range(1, 100);
-            if (roll <= settings.PotionChance)
-                return CreateItem(ItemType.Potion);
-            if (roll <= settings.PotionChance + settings.WeaponChance)
-                return CreateItem(ItemType.Weapon);
-            return CreateItem(ItemType.Armor);
-        }
-
-        private static string RandomName(string[] names)
-        {
-            return names[Dice.Range(0, names.Length - 1)];
+            Settings s = Settings.Instance;
+            int roll = s.Range(1, 100);
+            if (roll <= s.PotionChance) return Create(ItemType.Potion);
+            if (roll <= s.PotionChance + s.WeaponChance) return Create(ItemType.Weapon);
+            return Create(ItemType.Armor);
         }
     }
 
-    // ===== Игрок =====
-
+    // ---------- Игрок ----------
     class Player
     {
-        public int MaxHp { get; private set; }
+        public int MaxHp { get; }
         public int Hp { get; private set; }
-        public Weapon Weapon { get; private set; }
-        public Armor Armor { get; private set; }
-        public bool IsDefending { get; private set; }
-        public bool IsFrozen { get; private set; }
-
-        public Player()
-        {
-            GameSettings settings = GameSettings.Instance;
-            MaxHp = settings.PlayerMaxHp;
-            Hp = MaxHp;
-            Weapon = new Weapon("Деревянная палка", settings.StartWeaponDamage);
-            Armor = new Armor("Рваная рубаха", settings.StartArmorDefense);
-        }
-
-        public bool IsAlive
-        {
-            get { return Hp > 0; }
-        }
-
-        public void Heal()
-        {
-            Hp = MaxHp;
-        }
-
-        // одно оружие и один доспех одновременно: новый предмет заменяет старый
-        public void Equip(Weapon weapon)
-        {
-            Weapon = weapon;
-        }
-
-        public void Equip(Armor armor)
-        {
-            Armor = armor;
-        }
-
-        // урон игрока: урон оружия со случайным разбросом
-        public int RollDamage()
-        {
-            GameSettings settings = GameSettings.Instance;
-            return Weapon.Damage * Dice.Range(settings.DamageMinPercent, settings.DamageMaxPercent) / 100;
-        }
-
-        public void Defend()
-        {
-            IsDefending = true;
-        }
-
-        public void Freeze()
-        {
-            IsFrozen = true;
-        }
-
-        public void Unfreeze()
-        {
-            IsFrozen = false;
-        }
-
-        // удар врага по игроку; false - если игрок уклонился
+        public Weapon Weapon { get; private set; } = new Weapon("Палка", 10);
+        public Armor Armor { get; private set; } = new Armor("Рубаха", 3);
+        public bool Defending { get; private set; }
+        public bool Frozen { get; private set; }
+        public bool IsAlive => Hp > 0;
+        public Player() { MaxHp = Settings.Instance.PlayerHp; Hp = MaxHp; }
+        public void Heal() => Hp = MaxHp;
+        public void Equip(Weapon weapon) => Weapon = weapon;
+        public void Equip(Armor armor) => Armor = armor;
+        public void Defend() => Defending = true;
+        public void Freeze() => Frozen = true;
+        public void Unfreeze() => Frozen = false;
+        // false - если игрок уклонился
         public bool TakeHit(int damage, bool ignoreArmor)
         {
-            GameSettings settings = GameSettings.Instance;
-            if (IsDefending)
+            Settings s = Settings.Instance;
+            if (Defending)
             {
-                IsDefending = false; // защита действует только на одну атаку
-
-                if (Dice.Chance(settings.DodgeChance))
-                {
-                    Console.WriteLine("  Вы уклонились от атаки!");
-                    return false;
-                }
-
-                if (ignoreArmor)
-                {
-                    Console.WriteLine("  Враг игнорирует вашу защиту - блок не сработал!");
-                }
-                else
-                {
-                    int block = Armor.Defense * Dice.Range(settings.BlockMinPercent, settings.BlockMaxPercent) / 100;
-                    damage = Math.Max(0, damage - block);
-                    Console.WriteLine($"  Уклониться не вышло, но блок поглотил {block} урона");
-                }
+                Defending = false;
+                if (s.Chance(s.DodgeChance)) { Console.WriteLine("Вы уклонились от атаки!"); return false; }
+                int block = ignoreArmor ? 0 : Armor.Defense * s.Range(s.BlockMin, s.BlockMax) / 100;
+                damage = Math.Max(0, damage - block);
+                Console.WriteLine(ignoreArmor ? "Враг игнорирует вашу защиту!" : $"Блок поглотил {block} урона");
             }
-
             Hp = Math.Max(0, Hp - damage);
-            Console.WriteLine($"  Вы получили {damage} урона. Здоровье: {Hp}/{MaxHp}");
+            Console.WriteLine($"Вы получили {damage} урона. Здоровье: {Hp}/{MaxHp}");
             return true;
-        }
-
-        public void ShowStatus()
-        {
-            Console.WriteLine($"Здоровье: {Hp}/{MaxHp}");
-            Console.WriteLine($"Оружие:   {Weapon.GetInfo()}");
-            Console.WriteLine($"Доспех:   {Armor.GetInfo()}");
         }
     }
 
-    // ===== Враги =====
-
-    // Абстракция: общие характеристики всех врагов - здоровье, атака, защита
+    // ---------- Враги ----------
     abstract class Enemy
     {
-        public string Name { get; private set; }
-        public int MaxHp { get; private set; }
+        public string Name { get; }
+        public int MaxHp { get; }
         public int Hp { get; private set; }
-        public int Attack { get; private set; }
-        public int Defense { get; private set; }
-        public bool IsBoss { get; private set; }
-
+        public int Attack { get; }
+        public int Defense { get; }
+        public bool IsBoss { get; }
+        public bool IsAlive => Hp > 0;
         protected Enemy(string name, int hp, int attack, int defense, bool isBoss)
-        {
-            Name = name;
-            MaxHp = hp;
-            Hp = hp;
-            Attack = attack;
-            Defense = defense;
-            IsBoss = isBoss;
-        }
-
-        public bool IsAlive
-        {
-            get { return Hp > 0; }
-        }
-
-        public abstract string GetRace();
-        public abstract string GetAbility();
-
-        // для боссов: базовая характеристика, умноженная на множитель
-        protected static int Scale(int value, double multiplier)
-        {
-            return (int)Math.Round(value * multiplier);
-        }
-
-        // игрок бьет врага: защита врага уменьшает урон, но хотя бы 1 урон проходит
+        { Name = name; MaxHp = hp; Hp = hp; Attack = attack; Defense = defense; IsBoss = isBoss; }
+        protected static int Scale(int value, double k) => (int)Math.Round(value * k);
+        public abstract string Ability();
+        protected virtual int Crit(int damage) => damage;
+        protected virtual bool IgnoreArmor => false;
+        protected virtual void AfterHit(Player player) { }
         public int TakeDamage(int damage)
         {
-            int realDamage = Math.Max(1, damage - Defense);
-            Hp = Math.Max(0, Hp - realDamage);
-            return realDamage;
+            int real = Math.Max(1, damage - Defense); // хотя бы 1 урон проходит
+            Hp = Math.Max(0, Hp - real);
+            return real;
         }
-
-        // атака врага: порядок у всех одинаковый,
-        // а особенности (крит, игнор брони, заморозка) у каждого свои - полиморфизм
+        // порядок атаки общий, особенности у каждого врага свои
         public void AttackPlayer(Player player)
         {
-            GameSettings settings = GameSettings.Instance;
-            int damage = Math.Max(1, Attack * Dice.Range(settings.DamageMinPercent, settings.DamageMaxPercent) / 100);
-
             Console.WriteLine($"{Name} атакует!");
-            damage = ApplyCrit(damage);
-            bool hit = player.TakeHit(damage, IgnoresArmor());
-            if (hit && player.IsAlive)
-                AfterHit(player);
+            int damage = Crit(Math.Max(1, Settings.Instance.Spread(Attack)));
+            if (player.TakeHit(damage, IgnoreArmor) && player.IsAlive) AfterHit(player);
         }
-
-        protected virtual int ApplyCrit(int damage)
-        {
-            return damage;
-        }
-
-        protected virtual bool IgnoresArmor()
-        {
-            return false;
-        }
-
-        protected virtual void AfterHit(Player player)
-        {
-        }
-
-        // заморозка - общая для магов и Пестова
         protected void TryFreeze(Player player, int chance)
         {
-            if (Dice.Chance(chance))
-            {
-                player.Freeze();
-                Console.WriteLine($"  {Name} наложил заморозку! Вы пропустите следующий ход");
-            }
+            if (!Settings.Instance.Chance(chance)) return;
+            player.Freeze();
+            Console.WriteLine($"{Name} заморозил вас! Следующий ход пропускается");
         }
-
-        public void ShowInfo()
-        {
-            string title = IsBoss ? "БОСС" : "Враг";
-            Console.WriteLine($"{title}: {Name} (раса: {GetRace()})");
-            Console.WriteLine($"  Здоровье: {Hp}   Атака: {Attack}   Защита: {Defense}");
-            Console.WriteLine($"  Особенность: {GetAbility()}");
-        }
+        public override string ToString() => $"{(IsBoss ? "БОСС " : "")}{Name} - HP {Hp}, атака {Attack}, защита {Defense}, {Ability()}";
     }
-
-    // Гоблин - шанс критического урона
     class Goblin : Enemy
     {
-        public int CritChance { get; private set; }
-
-        public Goblin() : this("Гоблин", 1.0, 1.0, 1.0, 0, false) { }
-
-        // protected - этот конструктор нужен боссам-гоблинам: множители к базовым характеристикам
-        protected Goblin(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, int critBonus, bool isBoss)
-            : base(name,
-                   Scale(GameSettings.Instance.GoblinHp, hpMultiplier),
-                   Scale(GameSettings.Instance.GoblinAttack, attackMultiplier),
-                   Scale(GameSettings.Instance.GoblinDefense, defenseMultiplier),
-                   isBoss)
+        int critChance;
+        public Goblin() : this("Гоблин", 1, 1, 1, 0, false) { }
+        protected Goblin(string name, double hp, double atk, double def, int critBonus, bool boss)
+            : base(name, Scale(Settings.Instance.GoblinHp, hp), Scale(Settings.Instance.GoblinAtk, atk), Scale(Settings.Instance.GoblinDef, def), boss)
+        { critChance = Settings.Instance.GoblinCrit + critBonus; }
+        public override string Ability() => $"шанс крита {critChance}%";
+        protected override int Crit(int damage)
         {
-            CritChance = GameSettings.Instance.GoblinCritChance + critBonus;
-        }
-
-        public override string GetRace()
-        {
-            return "гоблин";
-        }
-
-        public override string GetAbility()
-        {
-            return $"шанс критического удара {CritChance}% (урон x{GameSettings.Instance.CritMultiplier})";
-        }
-
-        protected override int ApplyCrit(int damage)
-        {
-            if (!Dice.Chance(CritChance))
-                return damage;
-
-            Console.WriteLine("  Критический удар!");
-            return (int)(damage * GameSettings.Instance.CritMultiplier);
+            if (!Settings.Instance.Chance(critChance)) return damage;
+            Console.WriteLine("Критический удар!");
+            return damage * 2;
         }
     }
-
-    // Скелет - игнорирует защиту игрока
     class Skeleton : Enemy
     {
-        public Skeleton() : this("Скелет", 1.0, 1.0, 1.0, false) { }
-
-        protected Skeleton(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, bool isBoss)
-            : base(name,
-                   Scale(GameSettings.Instance.SkeletonHp, hpMultiplier),
-                   Scale(GameSettings.Instance.SkeletonAttack, attackMultiplier),
-                   Scale(GameSettings.Instance.SkeletonDefense, defenseMultiplier),
-                   isBoss)
-        {
-        }
-
-        public override string GetRace()
-        {
-            return "скелет";
-        }
-
-        public override string GetAbility()
-        {
-            return "игнорирует защиту игрока";
-        }
-
-        protected override bool IgnoresArmor()
-        {
-            return true;
-        }
+        public Skeleton() : this("Скелет", 1, 1, 1, false) { }
+        protected Skeleton(string name, double hp, double atk, double def, bool boss)
+            : base(name, Scale(Settings.Instance.SkeletonHp, hp), Scale(Settings.Instance.SkeletonAtk, atk), Scale(Settings.Instance.SkeletonDef, def), boss) { }
+        public override string Ability() => "игнорирует защиту";
+        protected override bool IgnoreArmor => true;
     }
-
-    // Маг - шанс наложить заморозку (игрок пропускает ход)
     class Mage : Enemy
     {
-        public int FreezeChance { get; private set; }
-
-        public Mage() : this("Маг", 1.0, 1.0, 1.0, 0, false) { }
-
-        protected Mage(string name, double hpMultiplier, double attackMultiplier, double defenseMultiplier, int freezeBonus, bool isBoss)
-            : base(name,
-                   Scale(GameSettings.Instance.MageHp, hpMultiplier),
-                   Scale(GameSettings.Instance.MageAttack, attackMultiplier),
-                   Scale(GameSettings.Instance.MageDefense, defenseMultiplier),
-                   isBoss)
-        {
-            FreezeChance = GameSettings.Instance.MageFreezeChance + freezeBonus;
-        }
-
-        public override string GetRace()
-        {
-            return "маг";
-        }
-
-        public override string GetAbility()
-        {
-            return $"шанс заморозки {FreezeChance}% (вы пропускаете ход)";
-        }
-
-        protected override void AfterHit(Player player)
-        {
-            TryFreeze(player, FreezeChance);
-        }
+        int freezeChance;
+        public Mage() : this("Маг", 1, 1, 1, 0, false) { }
+        protected Mage(string name, double hp, double atk, double def, int freezeBonus, bool boss)
+            : base(name, Scale(Settings.Instance.MageHp, hp), Scale(Settings.Instance.MageAtk, atk), Scale(Settings.Instance.MageDef, def), boss)
+        { freezeChance = Settings.Instance.MageFreeze + freezeBonus; }
+        public override string Ability() => $"шанс заморозки {freezeChance}%";
+        protected override void AfterHit(Player player) => TryFreeze(player, freezeChance);
     }
 
-    // ===== Боссы =====
-    // Наследование: каждый босс - это враг своей расы с усиленными характеристиками
-
-    // ВВГ (гоблин): здоровье x2.0, атака x1.5, защита x1.2, крит +10%
-    class Vvg : Goblin
-    {
-        public Vvg() : base("ВВГ", 2.0, 1.5, 1.2, 10, true) { }
-    }
-
-    // Ковальский (скелет): здоровье x2.5, атака x1.3, защита x1.4
-    class Kowalski : Skeleton
-    {
-        public Kowalski() : base("Ковальский", 2.5, 1.3, 1.4, true) { }
-    }
-
-    // Архимаг C++ (маг): здоровье x1.8, атака x1.6, защита x1.1, заморозка +10%
-    class ArchMage : Mage
-    {
-        public ArchMage() : base("Архимаг C++", 1.8, 1.6, 1.1, 10, true) { }
-    }
-
-    // Пестов С-- (скелет): здоровье x1.3, атака x1.8, защита x0.6,
-    // игнорирует защиту, как скелет, и может заморозить: шанс мага +15%
+    // ---------- Боссы ----------
+    class Vvg : Goblin { public Vvg() : base("ВВГ", 2.0, 1.5, 1.2, 10, true) { } }
+    class Kowalski : Skeleton { public Kowalski() : base("Ковальский", 2.5, 1.3, 1.4, true) { } }
+    class ArchMage : Mage { public ArchMage() : base("Архимаг C++", 1.8, 1.6, 1.1, 10, true) { } }
     class Pestov : Skeleton
     {
-        public int FreezeChance { get; private set; }
-
-        public Pestov() : base("Пестов С--", 1.3, 1.8, 0.6, true)
-        {
-            FreezeChance = GameSettings.Instance.MageFreezeChance + 15;
-        }
-
-        public override string GetAbility()
-        {
-            return base.GetAbility() + $", шанс заморозки {FreezeChance}%";
-        }
-
-        protected override void AfterHit(Player player)
-        {
-            TryFreeze(player, FreezeChance);
-        }
+        int freezeChance = Settings.Instance.MageFreeze + 15;
+        public Pestov() : base("Пестов С--", 1.3, 1.8, 0.6, true) { }
+        public override string Ability() => $"игнорирует защиту, шанс заморозки {freezeChance}%";
+        protected override void AfterHit(Player player) => TryFreeze(player, freezeChance);
     }
-
-    enum EnemyType
-    {
-        Goblin,
-        Skeleton,
-        Mage
-    }
-
-    enum BossType
-    {
-        Vvg,
-        Kowalski,
-        ArchMage,
-        Pestov
-    }
-
-    // Простая фабрика: создание врагов собрано в одном месте,
-    // поэтому новый тип врага добавляется одной строкой case
+    // первые три - обычные враги, остальные - боссы
+    enum EnemyType { Goblin, Skeleton, Mage, Vvg, Kowalski, ArchMage, Pestov }
+    // простая фабрика врагов
     class EnemyFactory
     {
-        public static Enemy CreateEnemy(EnemyType type)
+        public static Enemy Create(EnemyType type)
         {
             switch (type)
             {
-                case EnemyType.Goblin:
-                    return new Goblin();
-                case EnemyType.Skeleton:
-                    return new Skeleton();
-                case EnemyType.Mage:
-                    return new Mage();
-                default:
-                    return null;
+                case EnemyType.Goblin: return new Goblin();
+                case EnemyType.Skeleton: return new Skeleton();
+                case EnemyType.Mage: return new Mage();
+                case EnemyType.Vvg: return new Vvg();
+                case EnemyType.Kowalski: return new Kowalski();
+                case EnemyType.ArchMage: return new ArchMage();
+                case EnemyType.Pestov: return new Pestov();
+                default: return null;
             }
         }
-
-        public static Enemy CreateBoss(BossType type)
-        {
-            switch (type)
-            {
-                case BossType.Vvg:
-                    return new Vvg();
-                case BossType.Kowalski:
-                    return new Kowalski();
-                case BossType.ArchMage:
-                    return new ArchMage();
-                case BossType.Pestov:
-                    return new Pestov();
-                default:
-                    return null;
-            }
-        }
-
-        // тип врага выбирается случайно из всех значений перечисления
-        public static Enemy CreateRandomEnemy()
-        {
-            Array types = Enum.GetValues(typeof(EnemyType));
-            return CreateEnemy((EnemyType)types.GetValue(Dice.Range(0, types.Length - 1)));
-        }
-
-        public static Enemy CreateRandomBoss()
-        {
-            Array types = Enum.GetValues(typeof(BossType));
-            return CreateBoss((BossType)types.GetValue(Dice.Range(0, types.Length - 1)));
-        }
+        public static Enemy CreateRandom() => Create((EnemyType)Settings.Instance.Range(0, 2));
+        public static Enemy CreateRandomBoss() => Create((EnemyType)Settings.Instance.Range(3, 6));
     }
 
-    // ===== Игра =====
-
+    // ---------- Игра ----------
     class Game
     {
-        private Player player = new Player();
-        private int turn = 0;
-        private int enemiesKilled = 0;
-        private int bossesKilled = 0;
-        private int chestsOpened = 0;
-
+        Player player = new Player();
+        int turn, kills, bosses;
         public void Run()
         {
-            Console.WriteLine("\nВы спускаетесь в подземелье. Удачи!");
-
             while (player.IsAlive)
             {
                 turn++;
-                Console.WriteLine($"\n================ Ход {turn} ================");
-                player.ShowStatus();
-
-                // каждые N ходов - босс, иначе 50 на 50: сундук или враг
-                if (turn % GameSettings.Instance.BossEveryTurns == 0)
-                    Fight(EnemyFactory.CreateRandomBoss());
-                else if (Dice.Chance(GameSettings.Instance.ChestChance))
-                    OpenChest();
-                else
-                    Fight(EnemyFactory.CreateRandomEnemy());
-
-                if (player.IsAlive && ConsoleInput.ReadNumber("\n1 - идти дальше, 0 - закончить игру: ", 0, 1) == 0)
-                    break;
+                Console.WriteLine($"\n===== Ход {turn} | HP {player.Hp}/{player.MaxHp} | {player.Weapon} | {player.Armor} =====");
+                if (turn % Settings.Instance.BossEvery == 0) Fight(EnemyFactory.CreateRandomBoss());
+                else if (Settings.Instance.Chance(Settings.Instance.ChestChance))
+                {
+                    Item item = ItemFactory.CreateRandom();
+                    Console.WriteLine($"Вы нашли сундук! Внутри: {item}");
+                    item.Use(player); // у каждого предмета своя реализация Use
+                }
+                else Fight(EnemyFactory.CreateRandom());
+                if (player.IsAlive && Input.Number("1 - дальше, 0 - выйти: ", 0, 1) == 0) break;
             }
-
-            ShowResults();
+            Console.WriteLine($"\nИгра окончена. Ходов: {turn}, побеждено врагов: {kills}, боссов: {bosses}");
         }
-
-        private void OpenChest()
+        void Fight(Enemy enemy)
         {
-            chestsOpened++;
-            Item item = ItemFactory.CreateRandomItem();
-            Console.WriteLine($"\nВы нашли сундук! Внутри: {item.GetInfo()}");
-            item.Use(player); // зелье лечит, оружие и доспех предлагают замену
-        }
-
-        private void Fight(Enemy enemy)
-        {
-            Console.WriteLine(enemy.IsBoss ? "\n!!! Перед вами БОСС !!!" : "\nНа вас напал враг!");
-            enemy.ShowInfo();
+            Console.WriteLine(enemy);
             player.Unfreeze();
-
             while (player.IsAlive && enemy.IsAlive)
             {
-                Console.WriteLine($"\nВы: {player.Hp}/{player.MaxHp} HP   |   {enemy.Name}: {enemy.Hp}/{enemy.MaxHp} HP");
-
-                // игрок всегда ходит первым, если не заморожен
-                if (player.IsFrozen)
+                Console.WriteLine($"\nВы: {player.Hp}/{player.MaxHp}   {enemy.Name}: {enemy.Hp}/{enemy.MaxHp}");
+                if (player.Frozen)
                 {
-                    Console.WriteLine("Вы заморожены и пропускаете ход!");
+                    Console.WriteLine("Вы заморожены и пропускаете ход");
                     player.Unfreeze();
                 }
+                else if (Input.Number("1 - атака, 2 - защита: ", 1, 2) == 1)
+                    Console.WriteLine($"Вы нанесли {enemy.TakeDamage(Settings.Instance.Spread(player.Weapon.Damage))} урона");
                 else
-                {
-                    switch (ConsoleInput.ReadNumber("1 - Атака, 2 - Защита: ", 1, 2))
-                    {
-                        case 1:
-                            int damage = enemy.TakeDamage(player.RollDamage());
-                            Console.WriteLine($"Вы ударили {enemy.Name} на {damage} урона");
-                            break;
-                        case 2:
-                            player.Defend();
-                            Console.WriteLine("Вы встали в защитную стойку");
-                            break;
-                    }
-                }
-
-                if (!enemy.IsAlive)
-                    break;
-
-                // после хода игрока враг всегда атакует
-                enemy.AttackPlayer(player);
+                    player.Defend();
+                if (enemy.IsAlive) enemy.AttackPlayer(player);
             }
-
-            if (player.IsAlive)
-            {
-                enemiesKilled++;
-                if (enemy.IsBoss)
-                    bossesKilled++;
-                Console.WriteLine($"\nПобеда! {enemy.Name} повержен.");
-            }
-            else
-            {
-                Console.WriteLine($"\nВы погибли в бою с {enemy.Name}...");
-            }
-        }
-
-        private void ShowResults()
-        {
-            Console.WriteLine("\n============ ИГРА ОКОНЧЕНА ============");
-            Console.WriteLine(player.IsAlive ? "Вы вышли из подземелья живым." : "Подземелье оказалось сильнее.");
-            Console.WriteLine($"Пройдено ходов:    {turn}");
-            Console.WriteLine($"Побеждено врагов:  {enemiesKilled} (из них боссов: {bossesKilled})");
-            Console.WriteLine($"Открыто сундуков:  {chestsOpened}");
-            Console.WriteLine($"Последнее оружие:  {player.Weapon.GetInfo()}");
-            Console.WriteLine($"Последний доспех:  {player.Armor.GetInfo()}");
+            if (!player.IsAlive) { Console.WriteLine($"Вы погибли. Вас победил {enemy.Name}"); return; }
+            kills++;
+            if (enemy.IsBoss) bosses++;
+            Console.WriteLine($"{enemy.Name} повержен!");
         }
     }
-
-    // ===== Главное меню =====
-
     class Program
     {
         static void Main()
         {
             while (true)
             {
-                Console.WriteLine("\n========= ТЕКСТОВЫЙ РОГАЛИК =========");
-                Console.WriteLine("1 - Новая игра");
-                Console.WriteLine("2 - Настройки");
-                Console.WriteLine("0 - Выход");
-
-                switch (ConsoleInput.ReadNumber("Выберите пункт: ", 0, 2))
-                {
-                    case 1:
-                        Game game = new Game();
-                        game.Run();
-                        break;
-                    case 2:
-                        EditSettings();
-                        break;
-                    case 0:
-                        Console.WriteLine("До встречи!");
-                        return;
-                }
-            }
-        }
-
-        // настройки хранятся в одиночке GameSettings, поэтому изменения видны во всей игре
-        static void EditSettings()
-        {
-            GameSettings settings = GameSettings.Instance;
-            while (true)
-            {
-                Console.WriteLine();
-                settings.ShowInfo();
-                Console.WriteLine("\nЧто изменить?");
-                Console.WriteLine("1 - шанс сундука");
-                Console.WriteLine("2 - шанс уклонения в защите");
-                Console.WriteLine("3 - шанс крита гоблина");
-                Console.WriteLine("4 - шанс заморозки мага");
-                Console.WriteLine("5 - как часто появляется босс");
-                Console.WriteLine("0 - назад");
-
-                bool changed;
-                switch (ConsoleInput.ReadNumber("Выберите пункт: ", 0, 5))
-                {
-                    case 1:
-                        changed = settings.Change(SettingType.ChestChance, ConsoleInput.ReadNumber("Новый шанс сундука (0-100): ", 0, 100));
-                        break;
-                    case 2:
-                        changed = settings.Change(SettingType.DodgeChance, ConsoleInput.ReadNumber("Новый шанс уклонения (0-100): ", 0, 100));
-                        break;
-                    case 3:
-                        changed = settings.Change(SettingType.GoblinCritChance, ConsoleInput.ReadNumber("Новый шанс крита (0-100): ", 0, 100));
-                        break;
-                    case 4:
-                        changed = settings.Change(SettingType.MageFreezeChance, ConsoleInput.ReadNumber("Новый шанс заморозки (0-100): ", 0, 100));
-                        break;
-                    case 5:
-                        changed = settings.Change(SettingType.BossEveryTurns, ConsoleInput.ReadNumber("Босс каждые сколько ходов (2-50): ", 2, 50));
-                        break;
-                    default:
-                        return;
-                }
-                Console.WriteLine(changed ? "Настройка сохранена" : "Ошибка: недопустимое значение");
+                Console.WriteLine("\n=== ТЕКСТОВЫЙ РОГАЛИК ===\n1 - Новая игра\n0 - Выход");
+                if (Input.Number("Выбор: ", 0, 1) == 0) return;
+                new Game().Run();
             }
         }
     }
